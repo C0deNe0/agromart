@@ -3,6 +3,7 @@ CREATE TABLE users (
     --user profile
     email TEXT NULL UNIQUE,
     name TEXT NOT NULL,
+    profile_image_url TEXT,
     phone TEXT,
     role TEXT NOT NULL CHECK (role  IN ('USER','ADMIN')) DEFAULT 'USER',
 
