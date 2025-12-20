@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/C0deNe0/agromart/internal/model"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
@@ -98,4 +99,55 @@ type ProductResponse struct {
 	IsActive     bool       `json:"isActive"`
 	CreatedAt    time.Time  `json:"createdAt"`
 	UpdatedAt    time.Time  `json:"updatedAt"`
+}
+
+type GetProductByIDRequest struct {
+	ID uuid.UUID `param:"id" validate:"required,uuid"`
+}
+
+func (r *GetProductByIDRequest) Validate() error {
+	validate := validator.New()
+	return validate.Struct(r)
+}
+
+type DeleteProductRequest struct {
+	ID uuid.UUID `param:"id" validate:"required,uuid"`
+}
+
+func (r *DeleteProductRequest) Validate() error {
+	validate := validator.New()
+	return validate.Struct(r)
+}
+
+// this is the mapper which maps the product to product response
+func ToProductResponse(p *Product) *ProductResponse {
+	return &ProductResponse{
+		ID:           p.ID,
+		CompanyID:    p.CompanyID,
+		Name:         p.Name,
+		Description:  p.Description,
+		CategoryID:   p.CategoryID,
+		Unit:         p.Unit,
+		Origin:       p.Origin,
+		PriceDisplay: p.PriceDisplay,
+		IsActive:     p.IsActive,
+	}
+}
+
+func MapProductPage(
+	page *model.PaginatedResponse[Product],
+) *model.PaginatedResponse[ProductResponse] {
+
+	responses := make([]ProductResponse, 0, len(page.Data))
+	for _, p := range page.Data {
+		responses = append(responses, *ToProductResponse(&p))
+	}
+
+	return &model.PaginatedResponse[ProductResponse]{
+		Data:       responses,
+		Page:       page.Page,
+		Limit:      page.Limit,
+		Total:      page.Total,
+		TotalPages: page.TotalPages,
+	}
 }

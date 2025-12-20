@@ -35,3 +35,4 @@ type ProductVariant struct {
 	Price         decimal.Decimal `json:"price" db:"price"`
 	IsActive      bool            `json:"isActive" db:"is_active"`
 }
+
