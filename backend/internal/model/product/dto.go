@@ -14,6 +14,7 @@ type CreateProductRequest struct {
 	Name         string     `json:"name" validate:"required,min=3,max=255"`
 	Description  *string    `json:"description,omitempty" validate:"omitempty,max=2000"`
 	CategoryID   *uuid.UUID `json:"categoryId,omitempty" validate:"omitempty,uuid"`
+	CompanyID    *uuid.UUID `json:"companyId,omitempty" validate:"omitempty,uuid"`
 	Unit         *string    `json:"unit,omitempty" validate:"omitempty,max=50"`
 	Origin       *string    `json:"origin,omitempty" validate:"omitempty,max=100"`
 	PriceDisplay *string    `json:"priceDisplay,omitempty" validate:"omitempty,max=255"`
@@ -31,6 +32,7 @@ type UpdateProductRequest struct {
 	Name         *string    `json:"name,omitempty" validate:"omitempty,min=3,max=255"`
 	Description  *string    `json:"description,omitempty" validate:"omitempty,max=2000"`
 	CategoryID   *uuid.UUID `json:"categoryId,omitempty" validate:"omitempty,uuid"`
+	CompanyID    *uuid.UUID `json:"companyId,omitempty" validate:"omitempty,uuid"`
 	Unit         *string    `json:"unit,omitempty" validate:"omitempty,max=50"`
 	Origin       *string    `json:"origin,omitempty" validate:"omitempty,max=100"`
 	PriceDisplay *string    `json:"priceDisplay,omitempty" validate:"omitempty,max=255"`

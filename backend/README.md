@@ -100,3 +100,8 @@ DTO = validation + defaults
 Service = auth, ownership, business rules
 
 Repo = DB only (no validation, no RBAC)
+
+
+
+STUDY THE QUERIES
+AND THE PGX FUNCTIONS

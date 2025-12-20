@@ -12,6 +12,7 @@ import (
 	"github.com/C0deNe0/agromart/internal/logger"
 	"github.com/C0deNe0/agromart/internal/repository"
 	"github.com/C0deNe0/agromart/internal/server"
+	"github.com/C0deNe0/agromart/internal/service"
 )
 
 const DefaultContextTimeout = 30

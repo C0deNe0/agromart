@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/C0deNe0/agromart/internal/model"
 	"github.com/C0deNe0/agromart/internal/model/product"
@@ -70,12 +71,12 @@ func (r *ProductRepository) Create(ctx context.Context, p *product.Product) (*pr
 		"is_active":     p.IsActive,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create product: %w", err)
 	}
 
 	row, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[product.Product])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to collect one row: %w", err)
 	}
 
 	return &row, nil
@@ -83,13 +84,115 @@ func (r *ProductRepository) Create(ctx context.Context, p *product.Product) (*pr
 }
 
 func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*product.Product, error) {
-	return nil, nil
+	stmt := `
+		SELECT * FROM products
+		WHERE id=@id
+	`
+	rows, err := r.db.Query(ctx, stmt, pgx.NamedArgs{
+		"id": id,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product by id: %w", err)
+	}
+
+	row, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[product.Product])
+	if err != nil {
+		return nil, fmt.Errorf("failed to get product by id: %w", err)
+	}
+
+	return &row, nil
 }
 
 func (r *ProductRepository) List(ctx context.Context, filter ProductFilter) (*model.PaginatedResponse[product.Product], error) {
-	return nil, nil
+	base := `FROM products WHERE 1=1`
+	args := pgx.NamedArgs{}
+
+	if filter.CompanyID != nil {
+		base += ` AND company_id=@company_id`
+		args["company_id"] = *filter.CompanyID
+	}
+
+	if filter.CategoryID != nil {
+		base += ` AND category_id=@category_id`
+		args["category_id"] = *filter.CategoryID
+	}
+
+	if filter.Search != nil {
+		base += ` AND name ILIKE @search`
+		args["search"] = "%" + *filter.Search + "%"
+	}
+
+	if filter.IsActive != nil {
+		base += ` AND is_active=@is_active`
+		args["is_active"] = *filter.IsActive
+	}
+
+	//counting
+	var total int
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) `+base, args).Scan(&total); err != nil {
+		return nil, fmt.Errorf("failed to count products: %w", err)
+	}
+
+	//data
+	stmt := `SELECT * ` + base + ` ORDER BY created_at DESC LIMIT @limit OFFSET @offset`
+
+	args["limit"] = filter.Limit
+	args["offset"] = (filter.Page - 1) * filter.Limit
+
+	rows, err := r.db.Query(ctx, stmt, args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get products: %w", err)
+	}
+
+	items, err := pgx.CollectRows(rows, pgx.RowToStructByName[product.Product])
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect rows: %w", err)
+	}
+
+	return &model.PaginatedResponse[product.Product]{
+		Data:       items,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: (total + filter.Limit - 1) / filter.Limit,
+	}, nil
+
 }
 
 func (r *ProductRepository) Update(ctx context.Context, p *product.Product) (*product.Product, error) {
-	return nil, nil
+
+	stmt := `
+		 UPDATE products SET 
+			name=@name,
+			description=@description,
+			category_id=@category_id,
+			unit=@unit,
+			origin=@origin,
+			price_display=@price_display,
+			is_active=@is_active
+		WHERE id=@id
+		RETURNING *
+	`
+
+	rows, err := r.db.Query(ctx, stmt, pgx.NamedArgs{
+		"id":            p.ID,
+		"name":          p.Name,
+		"description":   p.Description,
+		"category_id":   p.CategoryID,
+		"unit":          p.Unit,
+		"origin":        p.Origin,
+		"price_display": p.PriceDisplay,
+		"is_active":     p.IsActive,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to update product: %w", err)
+	}
+
+	row, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[product.Product])
+	if err != nil {
+		return nil, fmt.Errorf("failed to collect one row: %w", err)
+	}
+
+	return &row, nil
 }
