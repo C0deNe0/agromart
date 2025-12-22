@@ -2,22 +2,24 @@ package repository
 
 import "github.com/jackc/pgx/v5/pgxpool"
 
-type Repository struct {
+type Repositories struct {
 	User             UserRepositoryImp
 	Company          CompanyRepositoryImp
 	Product          ProductRepositoryImp
 	Category         CategoryRepositoryImp
 	Favorite         FavoriteRepositoryImp
+	UserAuthMethod   UserAuthMethodRepositoryImp
 	SubscriptionPlan SubscriptionPlanRepositoryImp
 }
 
-func NewRepository(db *pgxpool.Pool) *Repository {
-	return &Repository{
+func NewRepositories(db *pgxpool.Pool) *Repositories {
+	return &Repositories{
 		User:             NewUserRepository(db),
 		Company:          NewCompanyRepository(db),
 		Product:          NewProductRepository(db),
 		Category:         NewCategoryRepository(db),
 		Favorite:         NewFavoriteRepository(db),
+		UserAuthMethod:   NewUserAuthMethodRepository(db),
 		SubscriptionPlan: NewSubscriptionPlanRepository(db),
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/C0deNe0/agromart/internal/model"
+	"github.com/google/uuid"
 )
 
 type UserRole string
@@ -23,4 +24,18 @@ type User struct {
 	IsActive        bool       `json:"isActive" db:"is_active"`
 	EmailVerified   bool       `json:"emailVerified" db:"email_verified"`
 	LastLoginAt     *time.Time `json:"lastLoginAt,omitempty" db:"last_login_at"`
+}
+
+type UserResponse struct {
+	ID              uuid.UUID `json:"id"`
+	Email           string    `json:"email"`
+	Name            string    `json:"name"`
+	Role            UserRole  `json:"role"`
+	ProfileImageURL *string   `json:"profileImageURL,omitempty"`
+}
+
+type AuthResponse struct {
+	User         UserResponse `json:"user"`
+	AccessToken  string       `json:"accessToken"`
+	RefreshToken string       `json:"refreshToken"`
 }
