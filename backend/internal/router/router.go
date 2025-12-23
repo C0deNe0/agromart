@@ -3,6 +3,7 @@ package router
 import (
 	"github.com/C0deNe0/agromart/internal/handler"
 	"github.com/C0deNe0/agromart/internal/lib/utils"
+	"github.com/C0deNe0/agromart/internal/middleware"
 	v1 "github.com/C0deNe0/agromart/internal/router/v1"
 	"github.com/labstack/echo/v4"
 	echoMiddleware "github.com/labstack/echo/v4/middleware"
@@ -11,6 +12,8 @@ import (
 func NewRouter(h *handler.Handlers, tokenManager *utils.TokenManager) *echo.Echo {
 	e := echo.New()
 
+	authMiddleware := middleware.NewAuthMiddleware(tokenManager)
+	adminMiddleware := middleware.NewAdminMiddleware()
 	//--GLOBAL MIDDLEWARES
 	e.Use(
 		echoMiddleware.Recover(),
@@ -23,8 +26,8 @@ func NewRouter(h *handler.Handlers, tokenManager *utils.TokenManager) *echo.Echo
 	RegisterSystemRoutes(e, h)
 
 	//----REGISTERING THE V1 ROUTES
-	v1Route := e.Group("/v1")
-	v1.RegisterV1Routes(e.AcquireContext(), v1Route, h, tokenManager)
+	v1Route := e.Group("/api/v1")
+	v1.RegisterV1Routes(e.AcquireContext(), v1Route, h, authMiddleware, adminMiddleware)
 
 	return e
 }

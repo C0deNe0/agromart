@@ -1,4 +1,5 @@
 package handler
+
 import (
 	"net/http"
 
@@ -60,7 +61,7 @@ func (h *CompanyHandler) Approve(c echo.Context) error {
 	}
 
 	adminID := middleware.GetUserID(c)
-	if err := h.companyService.Approve(c.Request().Context(), adminID, req.ID); err != nil {
+	if err := h.companyService.ApproveCompany(c.Request().Context(), adminID, req.ID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, "Company approved successfully")
@@ -76,8 +77,7 @@ func (h *CompanyHandler) Reject(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	adminID := middleware.GetUserID(c)
-	if err := h.companyService.Reject(c.Request().Context(), adminID, req.ID); err != nil {
+	if err := h.companyService.RejectCompany(c.Request().Context(), req.ID); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, "Company rejected!!")

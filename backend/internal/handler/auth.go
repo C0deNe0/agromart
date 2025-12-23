@@ -54,6 +54,20 @@ func (h *AuthHandler) Login() echo.HandlerFunc {
 func (h *AuthHandler) GoogleLogin() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		state := uuid.New().String()
+
+		//store state in HTTP only cookie for 5 min
+
+		c.SetCookie(&http.Cookie{
+			Name:     "oauth_state",
+			Value:    state,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,
+			MaxAge:   300,
+			// Expires:  time.Now().Add(5 * time.Minute),
+			SameSite: http.SameSiteLaxMode,
+		})
+
 		return c.Redirect(
 			http.StatusTemporaryRedirect,
 			h.googleOAuth.AuthURL(state),
@@ -63,10 +77,35 @@ func (h *AuthHandler) GoogleLogin() echo.HandlerFunc {
 
 func (h *AuthHandler) GoogleCallback() echo.HandlerFunc {
 	return func(c echo.Context) error {
+		state := c.QueryParam("state")
+		if state == "" {
+			return echo.NewHTTPError(http.StatusBadRequest, "state is required")
+		}
 		code := c.QueryParam("code")
 		if code == "" {
 			return echo.NewHTTPError(http.StatusBadRequest, "code is required")
 		}
+
+		//validate state
+		cookie, err := c.Cookie("oauth_state")
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, "state is required")
+		}
+		if cookie.Value != state {
+			return echo.NewHTTPError(http.StatusBadRequest, "state does not match")
+		}
+
+		//clearing after use
+		c.SetCookie(&http.Cookie{
+			Name:     "oauth_state",
+			Value:    "",
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,
+			MaxAge:   -1,
+			SameSite: http.SameSiteLaxMode,
+		})
+
 		token, err := h.googleOAuth.Exchange(c.Request().Context(), code)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())

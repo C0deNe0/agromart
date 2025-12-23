@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/C0deNe0/agromart/internal/model/company"
 	"github.com/C0deNe0/agromart/internal/repository"
@@ -42,10 +44,30 @@ func (s *CompanyService) ListPending(ctx context.Context) ([]company.Company, er
 	return s.companyRepo.ListPending(ctx)
 }
 
-func (s *CompanyService) Approve(ctx context.Context, adminID uuid.UUID, companyID uuid.UUID) error {
+func (s *CompanyService) ApproveCompany(ctx context.Context, adminID uuid.UUID, companyID uuid.UUID) error {
+	c, err := s.companyRepo.GetByID(ctx, companyID)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	if c.IsApproved {
+		return errors.New("company already approved")
+	}
+	c.IsApproved = true
+	c.ApprovedBy = &adminID
+	c.ApprovedAt = &now
+
 	return s.companyRepo.Approve(ctx, adminID, companyID)
 }
 
-func (s *CompanyService) Reject(ctx context.Context, adminID uuid.UUID, companyID uuid.UUID) error {
-	return s.companyRepo.Reject(ctx, adminID, companyID)
+func (s *CompanyService) RejectCompany(ctx context.Context, companyID uuid.UUID) error {
+	c, err := s.companyRepo.GetByID(ctx, companyID)
+	if err != nil {
+		return err
+	}
+	if c.IsApproved {
+		return errors.New("company already approved")
+	}
+	return s.companyRepo.Reject(ctx, companyID)
 }

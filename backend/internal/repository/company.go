@@ -12,10 +12,10 @@ type CompanyRepositoryImp interface {
 	Create(context.Context, *company.Company) (*company.Company, error)
 	GetByID(context.Context, uuid.UUID) (*company.Company, error)
 	ListByOwnerID(context.Context, uuid.UUID) ([]company.Company, error)
-	Update(context.Context, *company.Company) (*company.Company, error)
+	Update(context.Context, *company.Company) error
 	ListPending(context.Context) ([]company.Company, error)
 	Approve(context.Context, uuid.UUID, uuid.UUID) error
-	Reject(context.Context, uuid.UUID, uuid.UUID) error
+	Reject(context.Context, uuid.UUID) error
 }
 
 type CompanyRepository struct {
@@ -132,7 +132,7 @@ func (r *CompanyRepository) ListByOwnerID(ctx context.Context, ownerID uuid.UUID
 	return companies, nil
 }
 
-func (r *CompanyRepository) Update(ctx context.Context, c *company.Company) (*company.Company, error) {
+func (r *CompanyRepository) Update(ctx context.Context, c *company.Company) error {
 	stmt := `UPDATE companies SET name = $2, description = $3, logo_url = $4, business_email = $5, business_phone = $6, city = $7, state = $8, pincode = $9 WHERE id = $1`
 	_, err := r.db.Exec(ctx, stmt,
 		c.ID,
@@ -146,14 +146,16 @@ func (r *CompanyRepository) Update(ctx context.Context, c *company.Company) (*co
 		c.Pincode,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return c, nil
+	return nil
 }
 
 func (r *CompanyRepository) ListPending(ctx context.Context) ([]company.Company, error) {
-	query := `SELECT * FROM companies WHERE is_approved = false 
-		ORDER BY created_at DESC
+	query := `SELECT * FROM companies 
+			WHERE is_approved = false 
+				AND is_active = true
+			ORDER BY created_at ASC
 	`
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
@@ -191,10 +193,11 @@ func (r *CompanyRepository) ListPending(ctx context.Context) ([]company.Company,
 
 func (r *CompanyRepository) Approve(ctx context.Context, adminID uuid.UUID, companyID uuid.UUID) error {
 	query := `UPDATE companies
-		 SET is_approved = true,
-		  approved_by = $1,
-		   approved_at = NOW()
-		    WHERE id = $2`
+				SET
+					is_approved = true,
+					approved_by = $1,
+					approved_at = NOW()
+				WHERE id = $2`
 	_, err := r.db.Exec(ctx, query, adminID, companyID)
 	if err != nil {
 		return err
@@ -202,13 +205,12 @@ func (r *CompanyRepository) Approve(ctx context.Context, adminID uuid.UUID, comp
 	return nil
 }
 
-func (r *CompanyRepository) Reject(ctx context.Context, adminID uuid.UUID, companyID uuid.UUID) error {
+func (r *CompanyRepository) Reject(ctx context.Context, companyID uuid.UUID) error {
 	query := `UPDATE companies
-			 SET is_approved = false,
-			  approved_by = $1,
-			   approved_at = NOW()
-			    WHERE id = $2`
-	_, err := r.db.Exec(ctx, query, adminID, companyID)
+				SET is_active = false
+				WHERE id = $1	
+					AND is_approved = false`
+	_, err := r.db.Exec(ctx, query, companyID)
 	if err != nil {
 		return err
 	}

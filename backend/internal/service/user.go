@@ -32,3 +32,12 @@ func (s *UserService) GetMe(ctx context.Context, userID uuid.UUID) (*user.UserRe
 
 	return &resp, nil
 }
+
+func (s *UserService) BlockUser(ctx context.Context, userID uuid.UUID) error {
+	u, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	u.IsActive = false
+	return s.userRepo.Update(ctx, u)
+}

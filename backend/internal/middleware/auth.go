@@ -7,7 +7,15 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-func AuthMiddleware(tokenManager *utils.TokenManager) echo.MiddlewareFunc {
+type AuthMiddleware struct {
+	tokenManager *utils.TokenManager
+}
+
+func NewAuthMiddleware(tokenManager *utils.TokenManager) *AuthMiddleware {
+	return &AuthMiddleware{tokenManager: tokenManager}
+}
+
+func (am *AuthMiddleware) RequireAuth() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// Implement your authentication logic here
@@ -16,7 +24,7 @@ func AuthMiddleware(tokenManager *utils.TokenManager) echo.MiddlewareFunc {
 			if tokenStr == "" {
 				return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
 			}
-			claims, err := tokenManager.ParseAccessToken(tokenStr)
+			claims, err := am.tokenManager.ParseAccessToken(tokenStr)
 			if err != nil {
 				return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
 			}

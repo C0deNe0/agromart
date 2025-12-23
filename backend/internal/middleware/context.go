@@ -1,6 +1,9 @@
 package middleware
 
-import "github.com/google/uuid"
+import (
+	"github.com/C0deNe0/agromart/internal/model/user"
+	"github.com/google/uuid"
+)
 
 func GetUserID(c interface {
 	Get(string) interface{}
@@ -10,12 +13,12 @@ func GetUserID(c interface {
 
 func GetUserRole(c interface {
 	Get(string) interface{}
-}) string {
-	return c.Get("role").(string)
+}) user.UserRole {
+	return c.Get("role").(user.UserRole)
 }
 
 func IsAdmin(c interface {
 	Get(string) interface{}
 }) bool {
-	return c.Get("role").(string) == "ADMIN"
+	return c.Get("role").(user.UserRole) == user.RoleAdmin
 }
