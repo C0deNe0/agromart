@@ -1,9 +1,9 @@
-package handlers
-
+package handler
 import (
 	"net/http"
 
 	"github.com/C0deNe0/agromart/internal/middleware"
+	"github.com/C0deNe0/agromart/internal/model/company"
 	"github.com/C0deNe0/agromart/internal/service"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -13,10 +13,30 @@ type CompanyHandler struct {
 	companyService service.CompanyService
 }
 
-func NewCompanyHandler(companyService service.CompanyService) CompanyHandler {
-	return CompanyHandler{
+func NewCompanyHandler(companyService service.CompanyService) *CompanyHandler {
+	return &CompanyHandler{
 		companyService: companyService,
 	}
+}
+
+func (h *CompanyHandler) Create(c echo.Context) echo.HandlerFunc {
+	return Handle(
+		&company.CreateCompanyInput{},
+		func(c echo.Context, req *company.CreateCompanyInput) (*company.Company, error) {
+			userID := middleware.GetUserID(c)
+			return h.companyService.Create(c.Request().Context(), userID, *req)
+		},
+		http.StatusCreated,
+	)
+}
+
+func (h *CompanyHandler) ListByOwnerID(c echo.Context) error {
+	ownerID := middleware.GetUserID(c)
+	result, err := h.companyService.ListByOwnerID(c.Request().Context(), ownerID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(http.StatusOK, result)
 }
 
 func (h *CompanyHandler) ListPending(c echo.Context) error {

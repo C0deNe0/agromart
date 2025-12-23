@@ -23,3 +23,5 @@ type Company struct {
 	ApprovedAt    *time.Time `json:"approvedAt,omitempty" db:"approved_at"`
 	IsActive      bool       `json:"isActive" db:"is_active"`
 }
+
+

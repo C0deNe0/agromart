@@ -16,6 +16,7 @@ type ProductRepositoryImp interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*product.Product, error)
 	List(ctx context.Context, filter ProductFilter) (*model.PaginatedResponse[product.Product], error)
 	Update(ctx context.Context, p *product.Product) (*product.Product, error)
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type ProductRepository struct {
@@ -195,4 +196,17 @@ func (r *ProductRepository) Update(ctx context.Context, p *product.Product) (*pr
 	}
 
 	return &row, nil
+}
+
+func (r *ProductRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	stmt := `
+		UPDATE products SET is_active=false WHERE id=@id
+	`
+	_, err := r.db.Exec(ctx, stmt, pgx.NamedArgs{
+		"id": id,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete product: %w", err)
+	}
+	return nil
 }

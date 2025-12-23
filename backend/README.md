@@ -105,3 +105,19 @@ Repo = DB only (no validation, no RBAC)
 
 STUDY THE QUERIES
 AND THE PGX FUNCTIONS
+
+
+Repositories return DOMAIN models
+Services convert DOMAIN → RESPONSE DTOs
+Handlers only deal with REQUEST/RESPONSE DTOs
+
+
+LAYER	                TYPE
+Repository	            *user.User
+Service	                *user.User → UserResponse
+Handler	                UserResponse
+HTTP	                JSON
+
+
+<!-- NEXT TIME -->
+ADD MAPPER FOR EVERY STRUCT CHANGE

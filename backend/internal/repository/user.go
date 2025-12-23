@@ -10,10 +10,10 @@ import (
 
 type UserRepositoryImp interface {
 	Create(context.Context, *user.User) error
-	GetByID(context.Context, uuid.UUID) (*user.UserResponse, error)
-	List(context.Context) ([]user.UserResponse, error)
+	GetByID(context.Context, uuid.UUID) (*user.User, error)
+	List(context.Context) ([]user.User, error)
 	Update(context.Context, *user.User) error
-	GetByEmail(context.Context, string) (*user.UserResponse, error)
+	GetByEmail(context.Context, string) (*user.User, error)
 }
 
 type UserRepository struct {
@@ -46,18 +46,45 @@ func (r *UserRepository) Create(ctx context.Context, u *user.User) error {
 	return nil
 }
 
-func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*user.UserResponse, error) {
-	var user user.UserResponse
-	err := r.db.QueryRow(ctx, "SELECT * FROM users WHERE id = $1", id).Scan(&user)
+func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*user.User, error) {
+	var user user.User
+	query := `SELECT 
+					id,
+					email,
+					name,
+					profile_image_url,
+					phone,
+					role,
+					is_active,
+					email_verified,
+					last_login_at,
+					created_at,
+					updated_at
+	FROM users WHERE id = $1`
+
+	err := r.db.QueryRow(ctx, query, id).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Name,
+		&user.ProfileImageURL,
+		&user.Phone,
+		&user.Role,
+		&user.IsActive,
+		&user.EmailVerified,
+		&user.LastLoginAt,
+		&user.CreatedAt,
+		&user.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-func (r *UserRepository) List(ctx context.Context) ([]user.UserResponse, error) {
-	var users []user.UserResponse
-	err := r.db.QueryRow(ctx, "SELECT * FROM users").Scan(&users)
+func (r *UserRepository) List(ctx context.Context) ([]user.User, error) {
+	var users []user.User
+	query := `SELECT * FROM users`
+
+	err := r.db.QueryRow(ctx, query).Scan(&users)
 	if err != nil {
 		return nil, err
 	}
@@ -79,9 +106,37 @@ func (r *UserRepository) Update(ctx context.Context, u *user.User) error {
 	return nil
 }
 
-func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*user.UserResponse, error) {
-	var user user.UserResponse
-	err := r.db.QueryRow(ctx, "SELECT * FROM users WHERE email = $1", email).Scan(&user)
+func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*user.User, error) {
+	var user user.User
+
+	query := `
+		SELECT 
+			id,
+			email,
+			name,
+			profile_image_url,
+			phone,
+			role,
+			is_active,
+			email_verified,
+			last_login_at,
+			created_at,
+			updated_at
+		FROM users
+		WHERE email = $1
+	`
+	err := r.db.QueryRow(ctx, query, email).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Name,
+		&user.ProfileImageURL,
+		&user.Phone,
+		&user.Role,
+		&user.IsActive,
+		&user.EmailVerified,
+		&user.LastLoginAt,
+		&user.CreatedAt,
+		&user.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"github.com/C0deNe0/agromart/internal/validation"

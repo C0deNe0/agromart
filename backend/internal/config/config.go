@@ -16,10 +16,13 @@ type Config struct {
 	Primary  Primary        `koanf:"primary" validate:"required,dive"`
 	Server   Server         `koanf:"server" validate:"required,dive"`
 	Database DatabaseConfig `koanf:"database" validate:"required,dive"`
+	OAuth    OAuthConfig    `koanf:"oauth" validate:"required,dive"`
 }
 
 type Primary struct {
-	Env string `koanf:"env" validate:"required"`
+	Env    string `koanf:"env" validate:"required"`
+	Secret string `koanf:"secret" validate:"required"`
+	Access string `koanf:"access" validate:"required"`
 }
 
 type Server struct {
@@ -41,6 +44,12 @@ type DatabaseConfig struct {
 	MaxIdleConns    int    `koanf:"max_idle_conns" validate:"required"`
 	ConnMaxLifetime int    `koanf:"conn_max_lifetime" validate:"required"`
 	ConnMaxIdleTime int    `koanf:"conn_max_idle_time" validate:"required"`
+}
+
+type OAuthConfig struct {
+	GoogleClientID     string `koanf:"google_client_id" validate:"required"`
+	GoogleClientSecret string `koanf:"google_client_secret" validate:"required"`
+	GoogleRedirectURI  string `koanf:"google_redirect_uri" validate:"required"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -66,4 +75,3 @@ func LoadConfig() (*Config, error) {
 
 	return mainConfig, nil
 }
-

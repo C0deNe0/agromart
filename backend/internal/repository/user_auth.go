@@ -18,6 +18,7 @@ type UserAuthMethod struct {
 type UserAuthMethodRepositoryImp interface {
 	GetByEmail(ctx context.Context, email string) (*UserAuthMethod, error)
 	Create(ctx context.Context, m *UserAuthMethod) error
+	EnsureOAuth(ctx context.Context, userID uuid.UUID, provider string, providerUserID string) error
 }
 
 type UserAuthMethodRepository struct {
@@ -71,6 +72,32 @@ func (r *UserAuthMethodRepository) Create(
 	)`
 
 	_, err := r.db.Exec(ctx, query, m.ID, m.UserId, m.Provider, m.PasswordHash)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *UserAuthMethodRepository) EnsureOAuth(
+	ctx context.Context,
+	userID uuid.UUID,
+	provider string,
+	providerUserID string,
+) error {
+	query := `INSERT INTO user_auth_methods (
+		id,
+		user_id,
+		provider,
+		provider_user_id
+	) VALUES (
+		$1,
+		$2,
+		$3,
+		$4
+		
+	)`
+
+	_, err := r.db.Exec(ctx, query, userID, provider, providerUserID)
 	if err != nil {
 		return err
 	}

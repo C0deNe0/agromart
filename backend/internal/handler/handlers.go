@@ -1,6 +1,7 @@
-package handlers
-
-import "github.com/C0deNe0/agromart/internal/service"
+package handler
+import (
+	"github.com/C0deNe0/agromart/internal/service"
+)
 
 type Handlers struct {
 	Health  *HealthHandler
@@ -14,8 +15,8 @@ func NewHandlers(s *service.Services) Handlers {
 	return Handlers{
 		Health:  NewHealthHandler(),
 		User:    NewUserHandler(s.User),
-		Company: NewCompanyHandler(s.Company),
+		Company: NewCompanyHandler(*s.Company),
 		Product: NewProductHandler(s.Product),
-		Auth:    NewAuthHandler(s.Auth),
+		Auth:    NewAuthHandler(s.Auth, s.GoogleOAuth),
 	}
 }

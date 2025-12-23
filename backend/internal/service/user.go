@@ -22,11 +22,13 @@ func (s *UserService) GetMe(ctx context.Context, userID uuid.UUID) (*user.UserRe
 		return nil, err
 	}
 
-	return &user.UserResponse{
+	resp := user.UserResponse{
 		ID:              u.ID,
 		Email:           u.Email,
 		Name:            u.Name,
 		Role:            u.Role,
 		ProfileImageURL: u.ProfileImageURL,
-	}, nil
+	}
+
+	return &resp, nil
 }

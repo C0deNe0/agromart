@@ -9,8 +9,11 @@ import (
 
 	"github.com/C0deNe0/agromart/internal/config"
 	"github.com/C0deNe0/agromart/internal/database"
+	"github.com/C0deNe0/agromart/internal/handler"
+	"github.com/C0deNe0/agromart/internal/lib/utils"
 	"github.com/C0deNe0/agromart/internal/logger"
 	"github.com/C0deNe0/agromart/internal/repository"
+	"github.com/C0deNe0/agromart/internal/router"
 	"github.com/C0deNe0/agromart/internal/server"
 	"github.com/C0deNe0/agromart/internal/service"
 )
@@ -22,6 +25,12 @@ func main() {
 	if err != nil {
 		panic("failed to load the config: " + err.Error())
 	}
+
+	// googleOAuth := utils.NewGoogleOAuth(
+	// 	cfg.OAuth.GoogleClientID,
+	// 	cfg.OAuth.GoogleClientSecret,
+	// 	cfg.OAuth.GoogleRedirectURI,
+	// )
 
 	//new custom logger
 	log := logger.New(cfg.Primary.Env)
@@ -39,17 +48,23 @@ func main() {
 		panic("failed to create the server: " + err.Error())
 	}
 
-	repos := repository.NewRepository(srv.DB.Pool)
-	services, err := service.NewService(srv, repos)
-	if err != nil {
-		log.Fatal().Err(err).Msg("could not create services")
-	}
+	repos := repository.NewRepositories(srv.DB.Pool)
 
-	handlers := handler.NewHandler(srv, services)
+	//INFRASTRUCTRE
+	tokenManager := utils.NewTokenManager(cfg.Primary.Secret, cfg.Primary.Access)
+	googleOAuth := utils.NewGoogleOAuth(
+		cfg.OAuth.GoogleClientID,
+		cfg.OAuth.GoogleClientSecret,
+		cfg.OAuth.GoogleRedirectURI,
+	)
 
-	r := router.NewRouter(srv, handlers, services)
+	services := service.NewServices(repos, tokenManager, googleOAuth)
 
-	srv.SetupHTTPServer(handlers)
+	handlers := handler.NewHandlers(services)
+
+	r := router.NewRouter(&handlers, tokenManager)
+
+	srv.SetupHTTPServer(r)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 

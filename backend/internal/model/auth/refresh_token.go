@@ -20,6 +20,7 @@ type RefreshToken struct {
 }
 
 
+
 // Refresh Token
 
 // Lifetime: 30 days

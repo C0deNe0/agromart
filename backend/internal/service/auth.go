@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/C0deNe0/agromart/internal/lib/utils"
 	"github.com/C0deNe0/agromart/internal/model/user"
@@ -117,5 +118,47 @@ func (s *AuthService) LoginWithEmail(ctx context.Context, email string, password
 		},
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+	}, nil
+}
+
+func (s *AuthService) LoginWithGoogle(ctx context.Context, googleUserID string, email, name string, profileURL *string) (*user.AuthResponse, error) {
+	u, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil || u == nil {
+		u = &user.User{
+			Email:    email,
+			Name:     name,
+			Role:     user.RoleUser,
+			IsActive: true,
+		}
+
+		if err := s.userRepo.Create(ctx, u); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := s.authMethodRepo.EnsureOAuth(ctx, u.ID, "GOOGLE", googleUserID); err != nil {
+		return nil, err
+	}
+
+	access, err := s.TokenManager.GenerateAccessToken(u.ID, string(u.Role))
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate access token: %v", err)
+	}
+
+	refresh, err := s.TokenManager.GenerateRefreshToken(u.ID, string(u.Role))
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate refresh token: %v", err)
+	}
+
+	return &user.AuthResponse{
+		User: user.UserResponse{
+			ID:              u.ID,
+			Email:           u.Email,
+			Name:            u.Name,
+			Role:            u.Role,
+			ProfileImageURL: u.ProfileImageURL,
+		},
+		AccessToken:  access,
+		RefreshToken: refresh,
 	}, nil
 }
