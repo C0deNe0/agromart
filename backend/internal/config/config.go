@@ -13,10 +13,10 @@ import (
 )
 
 type Config struct {
-	Primary  Primary        `koanf:"primary" validate:"required,dive"`
-	Server   Server         `koanf:"server" validate:"required,dive"`
-	Database DatabaseConfig `koanf:"database" validate:"required,dive"`
-	OAuth    OAuthConfig    `koanf:"oauth" validate:"required,dive"`
+	Primary  Primary        `koanf:"primary" validate:"required"`
+	Server   Server         `koanf:"server" validate:"required"`
+	Database DatabaseConfig `koanf:"database" validate:"required"`
+	OAuth    OAuthConfig    `koanf:"oauth" validate:"required"`
 }
 
 type Primary struct {
@@ -27,10 +27,10 @@ type Primary struct {
 
 type Server struct {
 	Port               string   `koanf:"port" validate:"required"`
-	Readtimeout        int      `koanf:"read_timeout" validate:"required"`
-	Writetimeout       int      `koanf:"write_timeout" validate:"required"`
-	Idletimeout        int      `koanf:"idle_timeout" validate:"required"`
-	CORSAllowedorigins []string `koanf:"cors_allowed_origins" validate:"dive,url"`
+	ReadTimeout        int      `koanf:"read_timeout" validate:"required"`
+	WriteTimeout       int      `koanf:"write_timeout" validate:"required"`
+	IdleTimeout        int      `koanf:"idle_timeout" validate:"required"`
+	CORSAllowedOrigins []string `koanf:"cors_allowed_origins" validate:"dive,url"`
 }
 
 type DatabaseConfig struct {

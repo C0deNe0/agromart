@@ -26,7 +26,6 @@ func NewUserRepository(db *pgxpool.Pool) UserRepositoryImp {
 
 func (r *UserRepository) Create(ctx context.Context, u *user.User) error {
 	query := `INSERT INTO users (
-		id,
 		email,
 		name,
 		role,
@@ -35,11 +34,10 @@ func (r *UserRepository) Create(ctx context.Context, u *user.User) error {
 		$1,
 		$2,
 		$3,
-		$4,
-		$5
+		$4
 	)`
 
-	_, err := r.db.Exec(ctx, query, u.ID, u.Email, u.Name, u.Role, u.IsActive)
+	_, err := r.db.Exec(ctx, query, u.Email, u.Name, u.Role, u.IsActive)
 	if err != nil {
 		return err
 	}

@@ -40,9 +40,9 @@ func (s *Server) SetupHTTPServer(handler http.Handler) {
 	s.httpServer = &http.Server{
 		Addr:         ":" + s.Config.Server.Port,
 		Handler:      handler,
-		ReadTimeout:  time.Duration(s.Config.Server.Readtimeout) * time.Second,
-		WriteTimeout: time.Duration(s.Config.Server.Writetimeout) * time.Second,
-		IdleTimeout:  time.Duration(s.Config.Server.Idletimeout) * time.Second,
+		ReadTimeout:  time.Duration(s.Config.Server.ReadTimeout) * time.Second,
+		WriteTimeout: time.Duration(s.Config.Server.WriteTimeout) * time.Second,
+		IdleTimeout:  time.Duration(s.Config.Server.IdleTimeout) * time.Second,
 	}
 }
 

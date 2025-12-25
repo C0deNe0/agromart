@@ -51,7 +51,7 @@ func (s *AuthService) RegisterWithEmail(ctx context.Context, email string, passw
 	method := &repository.UserAuthMethod{
 		ID:           uuid.New(),
 		UserId:       u.ID,
-		Provider:     "EMAIL_PASSWORD",
+		AuthProvider:     "LOCAL",
 		PasswordHash: &hash,
 	}
 

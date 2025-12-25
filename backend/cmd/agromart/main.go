@@ -16,6 +16,7 @@ import (
 	"github.com/C0deNe0/agromart/internal/router"
 	"github.com/C0deNe0/agromart/internal/server"
 	"github.com/C0deNe0/agromart/internal/service"
+	"github.com/go-playground/validator/v10"
 )
 
 const DefaultContextTimeout = 30
@@ -23,6 +24,9 @@ const DefaultContextTimeout = 30
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
+		if err := validator.New().Struct(cfg); err != nil {
+			panic("failed to validate the config: " + err.Error())
+		}
 		panic("failed to load the config: " + err.Error())
 	}
 
@@ -59,9 +63,7 @@ func main() {
 	)
 
 	services := service.NewServices(repos, tokenManager, googleOAuth)
-
 	handlers := handler.NewHandlers(services)
-
 	r := router.NewRouter(&handlers, tokenManager)
 
 	srv.SetupHTTPServer(r)
