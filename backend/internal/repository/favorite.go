@@ -2,18 +2,11 @@ package repository
 
 import "github.com/jackc/pgx/v5/pgxpool"
 
-type FavoriteRepositoryImp interface {
-	Create()
-	GetByID()
-	List()
-	Update()
-}
-
 type FavoriteRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewFavoriteRepository(db *pgxpool.Pool) FavoriteRepositoryImp {
+func NewFavoriteRepository(db *pgxpool.Pool) *FavoriteRepository {
 	return &FavoriteRepository{db: db}
 }
 

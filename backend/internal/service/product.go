@@ -31,11 +31,11 @@ type ProductUpdateInput struct {
 }
 
 type ProductService struct {
-	productRepo repository.ProductRepositoryImp
-	companyRepo repository.CompanyRepositoryImp
+	productRepo *repository.ProductRepository
+	companyRepo *repository.CompanyRepository
 }
 
-func NewProductService(productRepo repository.ProductRepositoryImp, companyRepo repository.CompanyRepositoryImp) *ProductService {
+func NewProductService(productRepo *repository.ProductRepository, companyRepo *repository.CompanyRepository) *ProductService {
 	return &ProductService{
 		productRepo: productRepo,
 		companyRepo: companyRepo,

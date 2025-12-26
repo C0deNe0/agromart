@@ -8,7 +8,7 @@ Let’s do a proper audit, like a production readiness review.
 
 ✅ user_auth_methods
 
-✅ refresh_tokens
+✅ refresh_token
 
 ✔ OAuth-ready
 ✔ Secure sessions

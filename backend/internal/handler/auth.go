@@ -131,6 +131,28 @@ func (h *AuthHandler) GoogleCallback() echo.HandlerFunc {
 	}
 }
 
+func (h *AuthHandler) Refresh() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		authHeader := c.Request().Header.Get("Authorization")
+		if authHeader == "" {
+			return echo.NewHTTPError(http.StatusBadRequest, "authorization header is required")
+		}
+
+		const prefix = "Bearer "
+		if len(authHeader) <= len(prefix) || authHeader[:len(prefix)] != prefix {
+			return echo.NewHTTPError(http.StatusUnauthorized, "invalid authorization header")
+		}
+		refreshToken := authHeader[len(prefix):]
+
+		resp, err := h.authService.Refresh(c.Request().Context(), refreshToken)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		}
+
+		return c.JSON(http.StatusOK, resp)
+	}
+}
+
 //REGISTER----------
 
 // HTTP → Handler → AuthService

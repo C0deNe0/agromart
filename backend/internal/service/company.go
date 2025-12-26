@@ -11,10 +11,10 @@ import (
 )
 
 type CompanyService struct {
-	companyRepo repository.CompanyRepositoryImp
+	companyRepo *repository.CompanyRepository
 }
 
-func NewCompanyService(companyRepo repository.CompanyRepositoryImp) *CompanyService {
+func NewCompanyService(companyRepo *repository.CompanyRepository) *CompanyService {
 	return &CompanyService{
 		companyRepo: companyRepo,
 	}

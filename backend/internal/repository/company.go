@@ -8,21 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type CompanyRepositoryImp interface {
-	Create(context.Context, *company.Company) (*company.Company, error)
-	GetByID(context.Context, uuid.UUID) (*company.Company, error)
-	ListByOwnerID(context.Context, uuid.UUID) ([]company.Company, error)
-	Update(context.Context, *company.Company) error
-	ListPending(context.Context) ([]company.Company, error)
-	Approve(context.Context, uuid.UUID, uuid.UUID) error
-	Reject(context.Context, uuid.UUID) error
-}
 
 type CompanyRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewCompanyRepository(db *pgxpool.Pool) CompanyRepositoryImp {
+func NewCompanyRepository(db *pgxpool.Pool) *CompanyRepository {
 	return &CompanyRepository{db: db}
 }
 

@@ -11,19 +11,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type ProductRepositoryImp interface {
-	Create(ctx context.Context, p *product.Product) (*product.Product, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*product.Product, error)
-	List(ctx context.Context, filter ProductFilter) (*model.PaginatedResponse[product.Product], error)
-	Update(ctx context.Context, p *product.Product) (*product.Product, error)
-	Delete(ctx context.Context, id uuid.UUID) error
-}
-
 type ProductRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewProductRepository(db *pgxpool.Pool) ProductRepositoryImp {
+func NewProductRepository(db *pgxpool.Pool) *ProductRepository {
 	return &ProductRepository{db: db}
 }
 

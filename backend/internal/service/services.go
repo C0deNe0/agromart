@@ -6,16 +6,17 @@ import (
 )
 
 type Services struct {
-	User        *UserService
-	Company     *CompanyService
-	Product     *ProductService
-	Auth        *AuthService
-	GoogleOAuth *utils.GoogleOAuth
+	User         *UserService
+	Company      *CompanyService
+	Product      *ProductService
+	Auth         *AuthService
+	GoogleOAuth  *utils.GoogleOAuth
+	RefreshToken *repository.RefreshTokenRepository
 }
 
 //later we can add the aws client directly here to the services which requires it
 
-func NewServices(repo *repository.Repositories, tokenManager *utils.TokenManager, googleOAuth *utils.GoogleOAuth) *Services {
+func NewServices(repo *repository.Repositories, tokenManager *utils.TokenManager, googleOAuth *utils.GoogleOAuth, refreshTokenRepo *repository.RefreshTokenRepository) *Services {
 
 	// awsClient, err := aws.NewAWS(s)
 	// if err != nil {
@@ -28,14 +29,14 @@ func NewServices(repo *repository.Repositories, tokenManager *utils.TokenManager
 	//____________________________________________________________________
 
 	return &Services{
-		User:        NewUserService(repo.User),
-		Company:     NewCompanyService(repo.Company),
-		Product:     NewProductService(repo.Product, repo.Company),
-		Auth:        NewAuthService(repo.User, repo.UserAuthMethod, tokenManager),
-		GoogleOAuth: googleOAuth,
+		User:         NewUserService(repo.User),
+		Company:      NewCompanyService(repo.Company),
+		Product:      NewProductService(repo.Product, repo.Company),
+		Auth:         NewAuthService(repo.User, repo.UserAuthMethod, tokenManager, refreshTokenRepo),
+		GoogleOAuth:  googleOAuth,
+		RefreshToken: refreshTokenRepo,
 	}
 }
-
 
 // ❌ No secrets
 // ❌ No config reads

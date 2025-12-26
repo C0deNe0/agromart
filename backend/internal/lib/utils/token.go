@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -70,4 +72,7 @@ func (tm *TokenManager) ParseAccessToken(tokenStr string) (*Claims, error) {
 	}
 
 	return claims, nil
+}
+func HashToken(token string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(token)))
 }

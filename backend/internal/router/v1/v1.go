@@ -12,6 +12,7 @@ func RegisterV1Routes(c echo.Context, r *echo.Group, h *handler.Handlers, auth *
 	authRoutes := r.Group("/auth")
 	authRoutes.POST("/register", h.Auth.Register())
 	authRoutes.POST("/login", h.Auth.Login())
+	authRoutes.POST("/refresh", h.Auth.Refresh())
 
 	//google auth
 	authRoutes.GET("/google/login", h.Auth.GoogleLogin())

@@ -3,13 +3,14 @@ package repository
 import "github.com/jackc/pgx/v5/pgxpool"
 
 type Repositories struct {
-	User             UserRepositoryImp
-	Company          CompanyRepositoryImp
-	Product          ProductRepositoryImp
-	Category         CategoryRepositoryImp
-	Favorite         FavoriteRepositoryImp
-	UserAuthMethod   UserAuthMethodRepositoryImp
-	SubscriptionPlan SubscriptionPlanRepositoryImp
+	User             *UserRepository
+	Company          *CompanyRepository
+	Product          *ProductRepository
+	Category         *CategoryRepository
+	Favorite         *FavoriteRepository
+	UserAuthMethod   *UserAuthMethodRepository
+	SubscriptionPlan *SubscriptionPlanRepository
+	RefreshToken     *RefreshTokenRepository
 }
 
 func NewRepositories(db *pgxpool.Pool) *Repositories {
@@ -21,5 +22,6 @@ func NewRepositories(db *pgxpool.Pool) *Repositories {
 		Favorite:         NewFavoriteRepository(db),
 		UserAuthMethod:   NewUserAuthMethodRepository(db),
 		SubscriptionPlan: NewSubscriptionPlanRepository(db),
+		RefreshToken:     NewRefreshTokenRepository(db),
 	}
 }

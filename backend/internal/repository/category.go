@@ -2,18 +2,12 @@ package repository
 
 import "github.com/jackc/pgx/v5/pgxpool"
 
-type CategoryRepositoryImp interface {
-	Create()
-	GetByID()
-	List()
-	Update()
-}
 
 type CategoryRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewCategoryRepository(db *pgxpool.Pool) CategoryRepositoryImp {
+func NewCategoryRepository(db *pgxpool.Pool) *CategoryRepository {
 	return &CategoryRepository{db: db}
 }
 

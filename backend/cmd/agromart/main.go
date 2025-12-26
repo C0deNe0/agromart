@@ -53,6 +53,7 @@ func main() {
 	}
 
 	repos := repository.NewRepositories(srv.DB.Pool)
+	refreshTokenRepo := repository.NewRefreshTokenRepository(srv.DB.Pool)
 
 	//INFRASTRUCTRE
 	tokenManager := utils.NewTokenManager(cfg.Primary.Secret, cfg.Primary.Access)
@@ -62,7 +63,7 @@ func main() {
 		cfg.OAuth.GoogleRedirectURI,
 	)
 
-	services := service.NewServices(repos, tokenManager, googleOAuth)
+	services := service.NewServices(repos, tokenManager, googleOAuth, refreshTokenRepo)
 	handlers := handler.NewHandlers(services)
 	r := router.NewRouter(&handlers, tokenManager)
 

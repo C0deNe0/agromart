@@ -7,7 +7,7 @@ import (
 )
 
 type BaseWithID struct {
-	ID uuid.UUID `json:"id"`
+	ID uuid.UUID `json:"id" db:"id"`
 }
 
 type BaseWithCreatedAt struct {
@@ -19,7 +19,7 @@ type BaseWithUpdatedAt struct {
 }
 
 type Base struct {
-	BaseWithID
+	BaseWithID 
 	BaseWithCreatedAt
 	BaseWithUpdatedAt
 }

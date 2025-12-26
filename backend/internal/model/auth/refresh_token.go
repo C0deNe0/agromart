@@ -13,10 +13,10 @@ type RefreshToken struct {
 	model.Base
 	UserID    uuid.UUID `json:"-" db:"user_id"`
 	TokenHash string    `json:"-" db:"token_hash"`
-	UserAgent *string   `json:"-" db:"user_agent"`
-	IPAddress *string   `json:"-" db:"ip_address"`
+	UserAgent string   `json:"-" db:"user_agent"`
+	IPAddress string   `json:"-" db:"ip_address"`
 	ExpiresAt time.Time `json:"-" db:"expires_at"`
-	RevokedAt time.Time `json:"-" db:"revoked_at"`
+	RevokedAt *time.Time `json:"-" db:"revoked_at"`
 }
 
 

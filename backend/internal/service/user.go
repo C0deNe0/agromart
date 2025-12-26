@@ -9,10 +9,10 @@ import (
 )
 
 type UserService struct {
-	userRepo repository.UserRepositoryImp
+	userRepo *repository.UserRepository
 }
 
-func NewUserService(userRepo repository.UserRepositoryImp) *UserService {
+func NewUserService(userRepo *repository.UserRepository) *UserService {
 	return &UserService{userRepo: userRepo}
 }
 
@@ -39,5 +39,6 @@ func (s *UserService) BlockUser(ctx context.Context, userID uuid.UUID) error {
 		return err
 	}
 	u.IsActive = false
-	return s.userRepo.Update(ctx, u)
+	_, err = s.userRepo.Update(ctx, u)
+	return err
 }

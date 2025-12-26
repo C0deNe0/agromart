@@ -2,18 +2,11 @@ package repository
 
 import "github.com/jackc/pgx/v5/pgxpool"
 
-type SubscriptionPlanRepositoryImp interface {
-	Create()
-	GetByID()
-	List()
-	Update()
-}
-
 type SubscriptionPlanRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewSubscriptionPlanRepository(db *pgxpool.Pool) SubscriptionPlanRepositoryImp {
+func NewSubscriptionPlanRepository(db *pgxpool.Pool) *SubscriptionPlanRepository {
 	return &SubscriptionPlanRepository{db: db}
 }
 
