@@ -160,22 +160,33 @@ func (s *AuthService) LoginWithGoogle(ctx context.Context, googleSub string, ema
 }
 
 func (s *AuthService) Refresh(ctx context.Context, rawRefreshToken string) (*user.AuthResponse, error) {
+
+	// 1. Hash incoming refresh token
 	tokenHash := utils.HashToken(rawRefreshToken)
 
+	// 2. Find valid refresh token in DB
 	rt, err := s.refreshTokenRepo.FindValid(ctx, tokenHash)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("invalid or expired refresh token")
 	}
 
+	// 3. Load user
 	u, err := s.userRepo.GetByID(ctx, rt.UserID)
 	if err != nil || !u.IsActive {
 		return nil, errors.New("user not allowed")
 	}
+
+	// 4. Revoke old refresh token (rotation)
 	if err := s.refreshTokenRepo.Revoke(ctx, tokenHash); err != nil {
 		return nil, err
 	}
 
-	accessToken, refreshToken, err := s.issueTokens(ctx, u.ID, string(u.Role))
+	// 5. Issue new tokens + persist new refresh token
+	access, refresh, err := s.issueTokens(
+		ctx,
+		u.ID,
+		string(u.Role),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -187,18 +198,24 @@ func (s *AuthService) Refresh(ctx context.Context, rawRefreshToken string) (*use
 			Name:  u.Name,
 			Role:  u.Role,
 		},
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+		AccessToken:  access,
+		RefreshToken: refresh,
 	}, nil
+}
 
+func (s *AuthService) Logout(ctx context.Context, rawRefreshToken string) error {
+
+	refreshToken := utils.HashToken(rawRefreshToken)
+
+	if err := s.refreshTokenRepo.Revoke(ctx, refreshToken); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // this is just a auth helper function
-func (s *AuthService) issueTokens(
-	ctx context.Context,
-	userID uuid.UUID,
-	role string,
-) (access string, refresh string, err error) {
+func (s *AuthService) issueTokens(ctx context.Context, userID uuid.UUID, role string) (access string, refresh string, err error) {
 
 	access, err = s.TokenManager.GenerateAccessToken(userID, role)
 	if err != nil {

@@ -26,7 +26,7 @@ func NewTokenManager(accessSecret string, refreshSecret string) *TokenManager {
 	return &TokenManager{
 		AccessSecret:  accessSecret,
 		RefreshSecret: refreshSecret,
-		AccessTTL:     15 * time.Minute,
+		AccessTTL:     15 * time.Hour,
 		RefreshTTL:    7 * 24 * time.Hour,
 	}
 }
@@ -59,9 +59,15 @@ func (tm *TokenManager) GenerateRefreshToken(userID uuid.UUID, role string) (str
 
 func (tm *TokenManager) ParseAccessToken(tokenStr string) (*Claims, error) {
 
-	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
 		return []byte(tm.AccessSecret), nil
-	})
+
+	},
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +79,29 @@ func (tm *TokenManager) ParseAccessToken(tokenStr string) (*Claims, error) {
 
 	return claims, nil
 }
+
+func (tm *TokenManager) ParseRefreshToken(tokenStr string) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(tm.RefreshSecret), nil
+
+	},
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, jwt.ErrTokenInvalidClaims
+	}
+
+	return claims, nil
+}
+
 func HashToken(token string) string {
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(token)))
 }

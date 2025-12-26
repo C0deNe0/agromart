@@ -102,6 +102,32 @@ func (r *RefreshTokenRepository) RevokeAllForUser(ctx context.Context, userID uu
 	return err
 }
 
+func (r *RefreshTokenRepository) IsValid(ctx context.Context, userID uuid.UUID, tokenHash string) (bool, error) {
+	query := `SELECT *
+	FROM refresh_token
+	WHERE user_id = $1
+	AND token_hash = $2
+	AND revoked_at IS NULL
+	AND expires_at > NOW()
+	`
+	var rt auth.RefreshToken
+	err := r.db.QueryRow(ctx, query, userID, tokenHash).Scan(
+		&rt.ID,
+		&rt.UserID,
+		&rt.TokenHash,
+		&rt.UserAgent,
+		&rt.IPAddress,
+		&rt.ExpiresAt,
+		&rt.RevokedAt,
+		&rt.CreatedAt,
+		&rt.UpdatedAt,
+	)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // ✔ multiple devices per user
 // ✔ logout (single device)
 // ✔ logout all devices

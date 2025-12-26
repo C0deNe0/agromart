@@ -56,7 +56,10 @@ func main() {
 	refreshTokenRepo := repository.NewRefreshTokenRepository(srv.DB.Pool)
 
 	//INFRASTRUCTRE
-	tokenManager := utils.NewTokenManager(cfg.Primary.Secret, cfg.Primary.Access)
+	tokenManager := utils.NewTokenManager(
+		cfg.Primary.Access,
+		cfg.Primary.Secret,
+	)
 	googleOAuth := utils.NewGoogleOAuth(
 		cfg.OAuth.GoogleClientID,
 		cfg.OAuth.GoogleClientSecret,

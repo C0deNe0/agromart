@@ -7,8 +7,8 @@ import (
 	"github.com/C0deNe0/agromart/internal/model/product"
 	"github.com/C0deNe0/agromart/internal/repository"
 	"github.com/C0deNe0/agromart/internal/service"
-	"github.com/google/uuid"
 
+	"github.com/C0deNe0/agromart/internal/middleware"
 	"github.com/labstack/echo/v4"
 )
 
@@ -28,7 +28,7 @@ func (h *ProductHandler) CreateProduct(c echo.Context) echo.HandlerFunc {
 		&product.CreateProductRequest{},
 		func(c echo.Context, req *product.CreateProductRequest) (*product.ProductResponse, error) {
 
-			userID := c.Get("user_id").(uuid.UUID)
+			userID := middleware.GetUserID(c)
 
 			if req.CompanyID == nil {
 				return nil, echo.NewHTTPError(http.StatusBadRequest, "company id is required")
@@ -99,7 +99,7 @@ func (h *ProductHandler) UpdateProduct(c echo.Context) echo.HandlerFunc {
 	return Handle(
 		&product.UpdateProductRequest{},
 		func(c echo.Context, req *product.UpdateProductRequest) (*product.ProductResponse, error) {
-			userID := c.Get("user_id").(uuid.UUID)
+			userID := middleware.GetUserID(c)
 
 			input := service.ProductUpdateInput{
 				ID:           req.ID,
@@ -126,7 +126,7 @@ func (h *ProductHandler) DeleteProduct(c echo.Context) echo.HandlerFunc {
 	return HandleNoContent(
 		&product.DeleteProductRequest{},
 		func(c echo.Context, req *product.DeleteProductRequest) error {
-			userID := c.Get("user_id").(uuid.UUID)
+			userID := middleware.GetUserID(c)
 			return h.productService.Delete(c.Request().Context(), userID, req.ID)
 		},
 		http.StatusNoContent,

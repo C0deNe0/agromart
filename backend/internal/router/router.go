@@ -25,6 +25,8 @@ func NewRouter(h *handler.Handlers, tokenManager *utils.TokenManager) *echo.Echo
 	//----REGISTERING THE SYSTEM ROUTES
 	RegisterSystemRoutes(e, h)
 
+	
+	
 	//----REGISTERING THE V1 ROUTES
 	v1Route := e.Group("/api/v1")
 	v1.RegisterV1Routes(e.AcquireContext(), v1Route, h, authMiddleware, adminMiddleware)

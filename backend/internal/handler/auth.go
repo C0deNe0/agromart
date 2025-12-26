@@ -131,22 +131,48 @@ func (h *AuthHandler) GoogleCallback() echo.HandlerFunc {
 	}
 }
 
-func (h *AuthHandler) Refresh() echo.HandlerFunc {
+func (h *AuthHandler) Logout() echo.HandlerFunc {
 	return func(c echo.Context) error {
 		authHeader := c.Request().Header.Get("Authorization")
 		if authHeader == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, "authorization header is required")
+			return echo.NewHTTPError(http.StatusUnauthorized, "missing refresh token")
 		}
 
 		const prefix = "Bearer "
 		if len(authHeader) <= len(prefix) || authHeader[:len(prefix)] != prefix {
 			return echo.NewHTTPError(http.StatusUnauthorized, "invalid authorization header")
 		}
-		refreshToken := authHeader[len(prefix):]
 
-		resp, err := h.authService.Refresh(c.Request().Context(), refreshToken)
+		rawRefreshToken := authHeader[len(prefix):]
+		if err := h.authService.Logout(c.Request().Context(), rawRefreshToken); err != nil {
+			return echo.NewHTTPError(http.StatusUnauthorized, err.Error())
+		}
+		return c.JSON(http.StatusOK, echo.Map{
+			"message": "logged out successfully",
+		})
+	}
+}
+
+func (h *AuthHandler) Refresh() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		authHeader := c.Request().Header.Get("Authorization")
+		if authHeader == "" {
+			return echo.NewHTTPError(http.StatusUnauthorized, "missing refresh token")
+		}
+
+		const prefix = "Bearer "
+		if len(authHeader) <= len(prefix) || authHeader[:len(prefix)] != prefix {
+			return echo.NewHTTPError(http.StatusUnauthorized, "invalid authorization header")
+		}
+
+		rawRefreshToken := authHeader[len(prefix):]
+
+		resp, err := h.authService.Refresh(
+			c.Request().Context(),
+			rawRefreshToken,
+		)
 		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+			return echo.NewHTTPError(http.StatusUnauthorized, err.Error())
 		}
 
 		return c.JSON(http.StatusOK, resp)
