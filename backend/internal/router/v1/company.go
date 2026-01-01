@@ -2,11 +2,12 @@ package v1
 
 import (
 	"github.com/C0deNe0/agromart/internal/handler"
+	"github.com/C0deNe0/agromart/internal/middleware"
 	"github.com/labstack/echo/v4"
 )
 
-func RegisterCompanyRoutes(c echo.Context, r *echo.Group, h *handler.Handlers) {
-	company := r.Group("/companies")
-	company.GET("/", h.Company.Create(c))
-	// company.POST("/", h.Company.ListMine(c))
+func RegisterCompanyRoutes(r *echo.Group, h *handler.Handlers, auth *middleware.AuthMiddleware) {
+	company := r.Group("/companies", auth.RequireAuth())
+	company.POST("", h.Company.Create())
+	company.GET("/me", h.Company.ListMine())
 }

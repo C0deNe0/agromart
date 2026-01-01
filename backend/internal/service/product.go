@@ -2,33 +2,15 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/C0deNe0/agromart/internal/model"
 	"github.com/C0deNe0/agromart/internal/model/product"
 	"github.com/C0deNe0/agromart/internal/repository"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
-
-type ProductCreateInput struct {
-	CompanyID    uuid.UUID
-	Name         string
-	Description  *string
-	CategoryID   *uuid.UUID
-	Unit         *string
-	Origin       *string
-	PriceDisplay *string
-}
-type ProductUpdateInput struct {
-	ID           uuid.UUID
-	Name         *string
-	Description  *string
-	CategoryID   *uuid.UUID
-	Unit         *string
-	Origin       *string
-	PriceDisplay *string
-	IsActive     *bool
-}
 
 type ProductService struct {
 	productRepo *repository.ProductRepository
@@ -42,7 +24,7 @@ func NewProductService(productRepo *repository.ProductRepository, companyRepo *r
 	}
 }
 
-func (s *ProductService) Create(ctx context.Context, userID uuid.UUID, input ProductCreateInput) (*product.Product, error) {
+func (s *ProductService) Create(ctx context.Context, userID uuid.UUID, input product.ProductCreateInput) (*product.Product, error) {
 
 	//check if comp exists
 	company, err := s.companyRepo.GetByID(ctx, input.CompanyID)
@@ -59,14 +41,14 @@ func (s *ProductService) Create(ctx context.Context, userID uuid.UUID, input Pro
 	}
 
 	p := &product.Product{
-		CompanyID:    input.CompanyID,
-		Name:         input.Name,
-		Description:  input.Description,
-		CategoryID:   input.CategoryID,
-		Unit:         input.Unit,
-		Origin:       input.Origin,
-		PriceDisplay: input.PriceDisplay,
-		IsActive:     true,
+		CompanyID:   input.CompanyID,
+		Name:        input.Name,
+		Description: input.Description,
+		// CategoryID:  input.CategoryID,
+		Unit:     *input.Unit,
+		Origin:   input.Origin,
+		Price:    input.Price,
+		IsActive: true,
 	}
 
 	return s.productRepo.Create(ctx, p)
@@ -76,7 +58,7 @@ func (s *ProductService) List(ctx context.Context, filter repository.ProductFilt
 	return s.productRepo.List(ctx, filter)
 }
 
-func (s *ProductService) Update(ctx context.Context, userID uuid.UUID, p ProductUpdateInput) (*product.Product, error) {
+func (s *ProductService) Update(ctx context.Context, userID uuid.UUID, p product.ProductUpdateInput) (*product.Product, error) {
 	existing, err := s.productRepo.GetByID(ctx, p.ID)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't find product: %w", err)
@@ -97,17 +79,17 @@ func (s *ProductService) Update(ctx context.Context, userID uuid.UUID, p Product
 	if p.Description != nil {
 		existing.Description = p.Description
 	}
-	if p.CategoryID != nil {
-		existing.CategoryID = p.CategoryID
-	}
+	// if p.CategoryID != nil {
+	// 	existing.CategoryID = p.CategoryID
+	// }
 	if p.Unit != nil {
-		existing.Unit = p.Unit
+		existing.Unit = *p.Unit
 	}
 	if p.Origin != nil {
 		existing.Origin = p.Origin
 	}
-	if p.PriceDisplay != nil {
-		existing.PriceDisplay = p.PriceDisplay
+	if p.Price != decimal.Zero {
+		existing.Price = p.Price
 	}
 	if p.IsActive != nil {
 		existing.IsActive = *p.IsActive
@@ -141,3 +123,49 @@ func (s *ProductService) Delete(ctx context.Context, userID uuid.UUID, id uuid.U
 
 	return s.productRepo.Delete(ctx, id)
 }
+
+func (s *ProductService) AuthorizeProductMutation(ctx context.Context, userID uuid.UUID, productID uuid.UUID) error {
+
+	// 1️⃣ Product must exist
+	product, err := s.productRepo.GetByID(ctx, productID)
+	if err != nil {
+		return errors.New("product not found")
+	}
+
+	// 2️⃣ Product must be active
+	if !product.IsActive {
+		return errors.New("product is inactive")
+	}
+
+	// 3️⃣ Company must exist
+	company, err := s.companyRepo.GetByID(ctx, product.CompanyID)
+	if err != nil {
+		return errors.New("company not found")
+	}
+
+	// 4️⃣ Company must be active
+	if !company.IsActive {
+		return errors.New("company is inactive")
+	}
+
+	// 5️⃣ Company must be approved
+	if !company.IsApproved {
+		return errors.New("company is not approved")
+	}
+
+	// 6️⃣ Ownership check (USER only for now)
+	if company.OwnerID != userID {
+		return errors.New("you do not own this product")
+	}
+
+	return nil
+}
+
+// func (s *ProductService) GenerateImageUploadURL(
+// 	ctx context.Context,
+// 	productID uuid.UUID,
+// 	userID uuid.UUID,
+// 	input product.ProductImageUploadInput,
+// ) (string, error) {
+
+// }

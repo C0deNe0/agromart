@@ -27,10 +27,10 @@ func RegisterV1Routes(c echo.Context, r *echo.Group, h *handler.Handlers, auth *
 	api.GET("/user/me", h.User.Me())
 
 	//COMPANIES
-	RegisterCompanyRoutes(c, api, h)
+	RegisterCompanyRoutes(api, h, auth)
 
 	//products
-	RegisterProductRoutes(c, api, h)
+	RegisterProductRoutes(api, h)
 
 	//admin
 	RegisterAdminRoutes(api, h, admin)

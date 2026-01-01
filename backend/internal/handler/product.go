@@ -7,6 +7,7 @@ import (
 	"github.com/C0deNe0/agromart/internal/model/product"
 	"github.com/C0deNe0/agromart/internal/repository"
 	"github.com/C0deNe0/agromart/internal/service"
+	"github.com/google/uuid"
 
 	"github.com/C0deNe0/agromart/internal/middleware"
 	"github.com/labstack/echo/v4"
@@ -23,23 +24,23 @@ func NewProductHandler(productService *service.ProductService) *ProductHandler {
 	return &ProductHandler{productService: productService}
 }
 
-func (h *ProductHandler) CreateProduct(c echo.Context) echo.HandlerFunc {
+func (h *ProductHandler) CreateProduct() echo.HandlerFunc {
 	return Handle(
-		&product.CreateProductRequest{},
-		func(c echo.Context, req *product.CreateProductRequest) (*product.ProductResponse, error) {
+		&product.ProductCreateInput{},
+		func(c echo.Context, req *product.ProductCreateInput) (*product.ProductResponse, error) {
 
 			userID := middleware.GetUserID(c)
 
-			if req.CompanyID == nil {
+			if req.CompanyID == uuid.Nil {
 				return nil, echo.NewHTTPError(http.StatusBadRequest, "company id is required")
 			}
-			input := service.ProductCreateInput{
-				CompanyID:    *req.CompanyID,
-				Name:         req.Name,
-				CategoryID:   req.CategoryID,
-				Unit:         req.Unit,
-				Origin:       req.Origin,
-				PriceDisplay: req.PriceDisplay,
+			input := product.ProductCreateInput{
+				CompanyID:  req.CompanyID,
+				Name:       req.Name,
+				CategoryID: req.CategoryID,
+				Unit:       req.Unit,
+				Origin:     req.Origin,
+				Price:      req.Price,
 			}
 			p, err := h.productService.Create(
 				c.Request().Context(),
@@ -57,7 +58,7 @@ func (h *ProductHandler) CreateProduct(c echo.Context) echo.HandlerFunc {
 
 }
 
-func (h *ProductHandler) GetProductByID(c echo.Context) echo.HandlerFunc {
+func (h *ProductHandler) GetProductByID() echo.HandlerFunc {
 	return Handle(
 		&product.GetProductByIDRequest{},
 		func(c echo.Context, req *product.GetProductByIDRequest) (*product.ProductResponse, error) {
@@ -71,7 +72,7 @@ func (h *ProductHandler) GetProductByID(c echo.Context) echo.HandlerFunc {
 	)
 }
 
-func (h *ProductHandler) ListProducts(c echo.Context) echo.HandlerFunc {
+func (h *ProductHandler) ListProducts() echo.HandlerFunc {
 	return Handle(
 		&product.ListProductsQuery{},
 		func(c echo.Context, req *product.ListProductsQuery) (*model.PaginatedResponse[product.ProductResponse], error) {
@@ -95,21 +96,21 @@ func (h *ProductHandler) ListProducts(c echo.Context) echo.HandlerFunc {
 	)
 }
 
-func (h *ProductHandler) UpdateProduct(c echo.Context) echo.HandlerFunc {
+func (h *ProductHandler) UpdateProduct() echo.HandlerFunc {
 	return Handle(
-		&product.UpdateProductRequest{},
-		func(c echo.Context, req *product.UpdateProductRequest) (*product.ProductResponse, error) {
+		&product.ProductUpdateInput{},
+		func(c echo.Context, req *product.ProductUpdateInput) (*product.ProductResponse, error) {
 			userID := middleware.GetUserID(c)
 
-			input := service.ProductUpdateInput{
-				ID:           req.ID,
-				Name:         req.Name,
-				Description:  req.Description,
-				CategoryID:   req.CategoryID,
-				Unit:         req.Unit,
-				Origin:       req.Origin,
-				PriceDisplay: req.PriceDisplay,
-				IsActive:     req.IsActive,
+			input := product.ProductUpdateInput{
+				ID:          req.ID,
+				Name:        req.Name,
+				Description: req.Description,
+				CategoryID:  req.CategoryID,
+				Unit:        req.Unit,
+				Origin:      req.Origin,
+				Price:       req.Price,
+				IsActive:    req.IsActive,
 			}
 
 			p, err := h.productService.Update(c.Request().Context(), userID, input)
@@ -122,7 +123,7 @@ func (h *ProductHandler) UpdateProduct(c echo.Context) echo.HandlerFunc {
 	)
 }
 
-func (h *ProductHandler) DeleteProduct(c echo.Context) echo.HandlerFunc {
+func (h *ProductHandler) DeleteProduct() echo.HandlerFunc {
 	return HandleNoContent(
 		&product.DeleteProductRequest{},
 		func(c echo.Context, req *product.DeleteProductRequest) error {

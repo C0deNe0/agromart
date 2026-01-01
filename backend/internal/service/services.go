@@ -12,6 +12,7 @@ type Services struct {
 	Auth         *AuthService
 	GoogleOAuth  *utils.GoogleOAuth
 	RefreshToken *repository.RefreshTokenRepository
+	Upload       *UploadService
 }
 
 //later we can add the aws client directly here to the services which requires it
@@ -35,6 +36,7 @@ func NewServices(repo *repository.Repositories, tokenManager *utils.TokenManager
 		Auth:         NewAuthService(repo.User, repo.UserAuthMethod, tokenManager, refreshTokenRepo),
 		GoogleOAuth:  googleOAuth,
 		RefreshToken: refreshTokenRepo,
+		Upload:       NewUploadService(nil, NewProductService(repo.Product, repo.Company)),
 	}
 }
 

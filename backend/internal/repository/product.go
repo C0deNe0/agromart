@@ -35,33 +35,30 @@ func (r *ProductRepository) Create(ctx context.Context, p *product.Product) (*pr
 			company_id,
 			name,
 			description,
-			category_id,
 			unit,
 			origin,
-			price_display,
+			price,
 			is_active
 		)
 		VALUES (
 			@company_id,
 			@name,
 			@description,
-			@category_id,
 			@unit,
 			@origin,
-			@price_display,
+			@price,
 			@is_active
 		)
 		RETURNING *`
 
 	rows, err := r.db.Query(ctx, stmt, pgx.NamedArgs{
-		"company_id":    p.CompanyID,
-		"name":          p.Name,
-		"description":   p.Description,
-		"category_id":   p.CategoryID,
-		"unit":          p.Unit,
-		"origin":        p.Origin,
-		"price_display": p.PriceDisplay,
-		"is_active":     p.IsActive,
+		"company_id":  p.CompanyID,
+		"name":        p.Name,
+		"description": p.Description,
+		"unit":        p.Unit,
+		"origin":      p.Origin,
+		"price":       p.Price,
+		"is_active":   p.IsActive,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create product: %w", err)
@@ -161,21 +158,20 @@ func (r *ProductRepository) Update(ctx context.Context, p *product.Product) (*pr
 			category_id=@category_id,
 			unit=@unit,
 			origin=@origin,
-			price_display=@price_display,
+			price=@price,
 			is_active=@is_active
 		WHERE id=@id
 		RETURNING *
 	`
 
 	rows, err := r.db.Query(ctx, stmt, pgx.NamedArgs{
-		"id":            p.ID,
-		"name":          p.Name,
-		"description":   p.Description,
-		"category_id":   p.CategoryID,
-		"unit":          p.Unit,
-		"origin":        p.Origin,
-		"price_display": p.PriceDisplay,
-		"is_active":     p.IsActive,
+		"id":          p.ID,
+		"name":        p.Name,
+		"description": p.Description,
+		"unit":        p.Unit,
+		"origin":      p.Origin,
+		"price":       p.Price,
+		"is_active":   p.IsActive,
 	})
 
 	if err != nil {

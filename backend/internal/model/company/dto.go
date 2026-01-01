@@ -16,6 +16,11 @@ type CreateCompanyRequest struct {
 	Pincode       *string `json:"pincode,omitempty"`
 }
 
+func (c *CreateCompanyRequest) Validate() error {
+	validate := validator.New()
+	return validate.Struct(c)
+}
+
 type CreateCompanyInput struct {
 	Name          string  `json:"name"`
 	Description   *string `json:"description,omitempty"`

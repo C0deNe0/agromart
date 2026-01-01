@@ -11,74 +11,90 @@ import (
 )
 
 type CompanyHandler struct {
-	companyService service.CompanyService
+	service *service.CompanyService
 }
 
-func NewCompanyHandler(companyService service.CompanyService) *CompanyHandler {
+func NewCompanyHandler(service *service.CompanyService) *CompanyHandler {
 	return &CompanyHandler{
-		companyService: companyService,
+		service: service,
 	}
 }
 
-func (h *CompanyHandler) Create(c echo.Context) echo.HandlerFunc {
+func (h *CompanyHandler) Create() echo.HandlerFunc {
 	return Handle(
-		&company.CreateCompanyInput{},
-		func(c echo.Context, req *company.CreateCompanyInput) (*company.Company, error) {
+		&company.CreateCompanyRequest{},
+		func(c echo.Context, req *company.CreateCompanyRequest) (*company.Company, error) {
 			userID := middleware.GetUserID(c)
-			return h.companyService.Create(c.Request().Context(), userID, *req)
+			input := company.CreateCompanyInput{
+				Name:          req.Name,
+				Description:   req.Description,
+				LogoURL:       req.LogoURL,
+				BusinessEmail: req.BusinessEmail,
+				BusinessPhone: req.BusinessPhone,
+				City:          req.City,
+				State:         req.State,
+				Pincode:       req.Pincode,
+			}
+
+			return h.service.Create(c.Request().Context(), userID, input)
 		},
 		http.StatusCreated,
 	)
 }
 
-func (h *CompanyHandler) ListByOwnerID(c echo.Context) error {
-	ownerID := middleware.GetUserID(c)
-	result, err := h.companyService.ListByOwnerID(c.Request().Context(), ownerID)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+func (h *CompanyHandler) ListMine() echo.HandlerFunc {
+	return func(c echo.Context) error {
+
+		ownerID := middleware.GetUserID(c)
+		result, err := h.service.ListByOwnerID(c.Request().Context(), ownerID)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(http.StatusOK, result)
 	}
-	return c.JSON(http.StatusOK, result)
 }
 
-func (h *CompanyHandler) ListPending(c echo.Context) error {
-	result, err := h.companyService.ListPending(c.Request().Context())
-	if err != nil {
+func(h *CompanyHandler) Delete() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		companyID, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
 
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		adminID := middleware.GetUserID(c)
 
+		if err := h.service.DeleteCompany(c.Request().Context(), adminID, companyID); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(http.StatusOK, "Company deleted successfully")
 	}
-	return c.JSON(http.StatusOK, result)
 }
 
-func (h *CompanyHandler) Approve(c echo.Context) error {
-	type Request struct {
-		ID uuid.UUID `param:"id" validate:"required"`
-	}
 
-	var req Request
-	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	}
+func (h *CompanyHandler) Approve() echo.HandlerFunc {
 
-	adminID := middleware.GetUserID(c)
-	if err := h.companyService.ApproveCompany(c.Request().Context(), adminID, req.ID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	return func(c echo.Context) error {
+		adminID := middleware.GetUserID(c)
+		companyID, _ := uuid.Parse(c.Param("id"))
+
+		return h.service.ApproveCompany(c.Request().Context(), adminID, companyID)
 	}
-	return c.JSON(http.StatusOK, "Company approved successfully")
 }
 
-func (h *CompanyHandler) Reject(c echo.Context) error {
-	type Request struct {
-		ID uuid.UUID `param:"id" validate:"required"`
-	}
+func (h *CompanyHandler) Reject() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		companyID, _ := uuid.Parse(c.Param("id"))
 
-	var req Request
-	if err := c.Bind(&req); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return h.service.RejectCompany(c.Request().Context(), companyID)
 	}
+}
 
-	if err := h.companyService.RejectCompany(c.Request().Context(), req.ID); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+func (h *CompanyHandler) ListPending() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		result, err := h.service.ListPending(c.Request().Context())
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(http.StatusOK, result)
 	}
-	return c.JSON(http.StatusOK, "Company rejected!!")
 }

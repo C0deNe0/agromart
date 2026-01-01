@@ -7,6 +7,7 @@ import (
 	"github.com/C0deNe0/agromart/internal/model"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 //CREATE PRODUCT
@@ -88,17 +89,17 @@ func (q *ListProductsQuery) Validate() error {
 // RESPONSE PRODUCT
 
 type ProductResponse struct {
-	ID           uuid.UUID  `json:"id"`
-	CompanyID    uuid.UUID  `json:"companyId"`
-	Name         string     `json:"name"`
-	Description  *string    `json:"description,omitempty"`
-	CategoryID   *uuid.UUID `json:"categoryId,omitempty"`
-	Unit         *string    `json:"unit,omitempty"`
-	Origin       *string    `json:"origin,omitempty"`
-	PriceDisplay *string    `json:"priceDisplay,omitempty"`
-	IsActive     bool       `json:"isActive"`
-	CreatedAt    time.Time  `json:"createdAt"`
-	UpdatedAt    time.Time  `json:"updatedAt"`
+	ID          uuid.UUID       `json:"id"`
+	CompanyID   uuid.UUID       `json:"companyId"`
+	Name        string          `json:"name"`
+	Description *string         `json:"description,omitempty"`
+	CategoryID  *uuid.UUID      `json:"categoryId,omitempty"`
+	Unit        string          `json:"unit"`
+	Origin      *string         `json:"origin,omitempty"`
+	Price       decimal.Decimal `json:"price"`
+	IsActive    bool            `json:"isActive"`
+	CreatedAt   time.Time       `json:"createdAt"`
+	UpdatedAt   time.Time       `json:"updatedAt"`
 }
 
 type GetProductByIDRequest struct {
@@ -119,18 +120,48 @@ func (r *DeleteProductRequest) Validate() error {
 	return validate.Struct(r)
 }
 
+type ProductCreateInput struct {
+	CompanyID   uuid.UUID
+	Name        string
+	Description *string
+	CategoryID  *uuid.UUID
+	Unit        *string
+	Origin      *string
+	Price       decimal.Decimal
+}
+
+func (p *ProductCreateInput) Validate() error {
+	validate := validator.New()
+	return validate.Struct(p)
+}
+
+type ProductUpdateInput struct {
+	ID          uuid.UUID
+	Name        *string
+	Description *string
+	CategoryID  *uuid.UUID
+	Unit        *string
+	Origin      *string
+	Price       decimal.Decimal
+	IsActive    *bool
+}
+
+func (p *ProductUpdateInput) Validate() error {
+	validate := validator.New()
+	return validate.Struct(p)
+}
+
 // this is the mapper which maps the product to product response
 func ToProductResponse(p *Product) *ProductResponse {
 	return &ProductResponse{
-		ID:           p.ID,
-		CompanyID:    p.CompanyID,
-		Name:         p.Name,
-		Description:  p.Description,
-		CategoryID:   p.CategoryID,
-		Unit:         p.Unit,
-		Origin:       p.Origin,
-		PriceDisplay: p.PriceDisplay,
-		IsActive:     p.IsActive,
+		ID:          p.ID,
+		CompanyID:   p.CompanyID,
+		Name:        p.Name,
+		Description: p.Description,
+		Unit:        p.Unit,
+		Origin:      p.Origin,
+		Price:       p.Price,
+		IsActive:    p.IsActive,
 	}
 }
 
@@ -150,4 +181,13 @@ func MapProductPage(
 		Total:      page.Total,
 		TotalPages: page.TotalPages,
 	}
+}
+
+type ProductImageUploadInput struct {
+	ImageURL  string `json:"imageUrl" validate:"required"`
+	IsPrimary bool   `json:"isPrimary" validate:"required"`
+}
+
+type DeleteProductImageRequest struct {
+	ID uuid.UUID `param:"id" validate:"required,uuid"`
 }

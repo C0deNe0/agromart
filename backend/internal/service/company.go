@@ -44,6 +44,20 @@ func (s *CompanyService) ListPending(ctx context.Context) ([]company.Company, er
 	return s.companyRepo.ListPending(ctx)
 }
 
+func (s *CompanyService) DeleteCompany(ctx context.Context, adminID uuid.UUID, companyID uuid.UUID) error {
+
+	c, err :=s.companyRepo.GetByID(ctx, companyID)
+	if err != nil {
+		return err
+	}
+
+	if !c.IsActive {
+		return errors.New("company already deleted")
+	}
+	
+
+	return s.companyRepo.SoftDelete(ctx, companyID)
+}
 func (s *CompanyService) ApproveCompany(ctx context.Context, adminID uuid.UUID, companyID uuid.UUID) error {
 	c, err := s.companyRepo.GetByID(ctx, companyID)
 	if err != nil {
