@@ -130,7 +130,9 @@ func (s *AuthService) LoginWithGoogle(ctx context.Context, googleSub string, ema
 			Email:    email,
 			Name:     name,
 			Role:     user.RoleUser,
+			EmailVerified: true,
 			IsActive: true,
+			ProfileImageURL: profileURL,
 		})
 		if err != nil {
 			return nil, err

@@ -13,13 +13,13 @@ import (
 //CREATE PRODUCT
 
 type CreateProductRequest struct {
-	Name         string     `json:"name" validate:"required,min=3,max=255"`
-	Description  *string    `json:"description,omitempty" validate:"omitempty,max=2000"`
-	CategoryID   *uuid.UUID `json:"categoryId,omitempty" validate:"omitempty,uuid"`
-	CompanyID    *uuid.UUID `json:"companyId,omitempty" validate:"omitempty,uuid"`
-	Unit         *string    `json:"unit,omitempty" validate:"omitempty,max=50"`
-	Origin       *string    `json:"origin,omitempty" validate:"omitempty,max=100"`
-	PriceDisplay *string    `json:"priceDisplay,omitempty" validate:"omitempty,max=255"`
+	CompanyID   uuid.UUID       `json:"companyId" validate:"required,uuid"`
+	CategoryID  *uuid.UUID      `json:"categoryId,omitempty" validate:"omitempty,uuid"`
+	Name        string          `json:"name" validate:"required,min=3,max=255"`
+	Description *string         `json:"description,omitempty" validate:"omitempty,max=2000"`
+	Unit        string          `json:"unit" validate:"required,max=50"`
+	Origin      *string         `json:"origin,omitempty" validate:"omitempty,max=100"`
+	Price       decimal.Decimal `json:"price" validate:"required,gt=0"`
 }
 
 func (r *CreateProductRequest) Validate() error {
@@ -30,16 +30,15 @@ func (r *CreateProductRequest) Validate() error {
 // UPDATE PRODUCT
 
 type UpdateProductRequest struct {
-	ID           uuid.UUID  `param:"id" validate:"required,uuid"`
-	Name         *string    `json:"name,omitempty" validate:"omitempty,min=3,max=255"`
-	Description  *string    `json:"description,omitempty" validate:"omitempty,max=2000"`
-	CategoryID   *uuid.UUID `json:"categoryId,omitempty" validate:"omitempty,uuid"`
-	CompanyID    *uuid.UUID `json:"companyId,omitempty" validate:"omitempty,uuid"`
-	Unit         *string    `json:"unit,omitempty" validate:"omitempty,max=50"`
-	Origin       *string    `json:"origin,omitempty" validate:"omitempty,max=100"`
-	PriceDisplay *string    `json:"priceDisplay,omitempty" validate:"omitempty,max=255"`
-
-	IsActive *bool `json:"isActive,omitempty" validate:"omitempty"`
+	ID          uuid.UUID        `param:"id" validate:"required,uuid"`
+	CategoryID  *uuid.UUID       `json:"categoryId,omitempty" validate:"omitempty,uuid"`
+	Name        *string          `json:"name,omitempty" validate:"omitempty,min=3,max=255"`
+	Description *string          `json:"description,omitempty" validate:"omitempty,max=2000"`
+	Unit        *string          `json:"unit,omitempty" validate:"omitempty,max=50"`
+	Origin      *string          `json:"origin,omitempty" validate:"omitempty,max=100"`
+	Price       *decimal.Decimal `json:"price,omitempty" validate:"omitempty,gt=0"`
+	IsActive    *bool            `json:"isActive,omitempty"`
+	// NOTE: No CompanyID - cannot change product's company
 }
 
 func (r *UpdateProductRequest) Validate() error {
@@ -49,9 +48,18 @@ func (r *UpdateProductRequest) Validate() error {
 
 // LIST PRODUCT
 
+// type ListProductsQuery struct {
+// 	Page       *int       `query:"page" validate:"required,min=1"`
+// 	Limit      *int       `query:"limit" validate:"required,min=1"`
+// 	CompanyID  *uuid.UUID `query:"companyId" validate:"omitempty,uuid"`
+// 	CategoryID *uuid.UUID `query:"categoryId" validate:"omitempty,uuid"`
+// 	Search     *string    `query:"search" validate:"omitempty,min=1"`
+// 	IsActive   *bool      `query:"isActive" validate:"omitempty"`
+// }
+
 type ListProductsQuery struct {
-	Page       *int       `query:"page" validate:"required,min=1"`
-	Limit      *int       `query:"limit" validate:"required,min=1"`
+	Page       int        `query:"page" validate:"min=1"`
+	Limit      int        `query:"limit" validate:"min=1,max=100"`
 	CompanyID  *uuid.UUID `query:"companyId" validate:"omitempty,uuid"`
 	CategoryID *uuid.UUID `query:"categoryId" validate:"omitempty,uuid"`
 	Search     *string    `query:"search" validate:"omitempty,min=1"`
@@ -65,41 +73,23 @@ func (q *ListProductsQuery) Validate() error {
 		return err
 	}
 
-	if q.Page == nil {
-		p := 1
-		q.Page = &p
+	if q.Page == 0 {
+		q.Page = 1
 	}
 
-	if q.Limit == nil {
-		l := 10
-		q.Limit = &l
+	if q.Limit == 0 {
+		q.Limit = 10
 	}
 
-	if *q.Page < 1 {
+	if q.Page < 1 {
 		return errors.New("page must be greater than 0")
 	}
 
-	if *q.Limit < 1 {
+	if q.Limit < 1 {
 		return errors.New("limit must be greater than 0")
 	}
 
 	return nil
-}
-
-// RESPONSE PRODUCT
-
-type ProductResponse struct {
-	ID          uuid.UUID       `json:"id"`
-	CompanyID   uuid.UUID       `json:"companyId"`
-	Name        string          `json:"name"`
-	Description *string         `json:"description,omitempty"`
-	CategoryID  *uuid.UUID      `json:"categoryId,omitempty"`
-	Unit        string          `json:"unit"`
-	Origin      *string         `json:"origin,omitempty"`
-	Price       decimal.Decimal `json:"price"`
-	IsActive    bool            `json:"isActive"`
-	CreatedAt   time.Time       `json:"createdAt"`
-	UpdatedAt   time.Time       `json:"updatedAt"`
 }
 
 type GetProductByIDRequest struct {
@@ -120,35 +110,26 @@ func (r *DeleteProductRequest) Validate() error {
 	return validate.Struct(r)
 }
 
-type ProductCreateInput struct {
-	CompanyID   uuid.UUID
-	Name        string
-	Description *string
-	CategoryID  *uuid.UUID
-	Unit        *string
-	Origin      *string
-	Price       decimal.Decimal
+// RESPONSE PRODUCT
+
+type ProductResponse struct {
+	ID          uuid.UUID       `json:"id"`
+	CompanyID   uuid.UUID       `json:"companyId"`
+	CategoryID  *uuid.UUID      `json:"categoryId,omitempty"`
+	Name        string          `json:"name"`
+	Description *string         `json:"description,omitempty"`
+	Unit        string          `json:"unit"`
+	Origin      *string         `json:"origin,omitempty"`
+	Price       decimal.Decimal `json:"price"`
+	IsActive    bool            `json:"isActive"`
+	CreatedAt   time.Time       `json:"createdAt"`
+	UpdatedAt   time.Time       `json:"updatedAt"`
 }
 
-func (p *ProductCreateInput) Validate() error {
-	validate := validator.New()
-	return validate.Struct(p)
-}
-
-type ProductUpdateInput struct {
-	ID          uuid.UUID
-	Name        *string
-	Description *string
-	CategoryID  *uuid.UUID
-	Unit        *string
-	Origin      *string
-	Price       decimal.Decimal
-	IsActive    *bool
-}
-
-func (p *ProductUpdateInput) Validate() error {
-	validate := validator.New()
-	return validate.Struct(p)
+// Response with categroy details
+type ProductWithCategoryResponse struct {
+	ProductResponse
+	CategoryName *string `json:"categoryName,omitempty"`
 }
 
 // this is the mapper which maps the product to product response
@@ -156,12 +137,15 @@ func ToProductResponse(p *Product) *ProductResponse {
 	return &ProductResponse{
 		ID:          p.ID,
 		CompanyID:   p.CompanyID,
+		CategoryID:  p.CategoryID,
 		Name:        p.Name,
 		Description: p.Description,
 		Unit:        p.Unit,
 		Origin:      p.Origin,
 		Price:       p.Price,
 		IsActive:    p.IsActive,
+		CreatedAt:   p.CreatedAt,
+		UpdatedAt:   p.UpdatedAt,
 	}
 }
 
@@ -183,11 +167,14 @@ func MapProductPage(
 	}
 }
 
+//PRODUCT IMAGES
+
 type ProductImageUploadInput struct {
 	ImageURL  string `json:"imageUrl" validate:"required"`
 	IsPrimary bool   `json:"isPrimary" validate:"required"`
 }
 
 type DeleteProductImageRequest struct {
-	ID uuid.UUID `param:"id" validate:"required,uuid"`
+	ProductID uuid.UUID `param:"productId" validate:"required,uuid"`
+	ImageID   uuid.UUID `param:"imageId" validate:"required,uuid"`
 }

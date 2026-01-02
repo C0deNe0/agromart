@@ -60,13 +60,8 @@ func main() {
 		cfg.Primary.Access,
 		cfg.Primary.Secret,
 	)
-	googleOAuth := utils.NewGoogleOAuth(
-		cfg.OAuth.GoogleClientID,
-		cfg.OAuth.GoogleClientSecret,
-		cfg.OAuth.GoogleRedirectURI,
-	)
 
-	services := service.NewServices(repos, tokenManager, googleOAuth, refreshTokenRepo)
+	services := service.NewServices(repos, tokenManager, refreshTokenRepo)
 	handlers := handler.NewHandlers(services)
 	r := router.NewRouter(&handlers, tokenManager)
 

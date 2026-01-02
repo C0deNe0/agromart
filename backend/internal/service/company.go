@@ -3,85 +3,226 @@ package service
 import (
 	"context"
 	"errors"
-	"time"
+	"fmt"
 
+	"github.com/C0deNe0/agromart/internal/model"
 	"github.com/C0deNe0/agromart/internal/model/company"
 	"github.com/C0deNe0/agromart/internal/repository"
 	"github.com/google/uuid"
 )
 
 type CompanyService struct {
-	companyRepo *repository.CompanyRepository
+	companyRepo         *repository.CompanyRepository
+	companyFollowerRepo *repository.CompanyFollowerRepository
 }
 
-func NewCompanyService(companyRepo *repository.CompanyRepository) *CompanyService {
+func NewCompanyService(companyRepo *repository.CompanyRepository, companyFollowerRepo *repository.CompanyFollowerRepository) *CompanyService {
 	return &CompanyService{
-		companyRepo: companyRepo,
+		companyRepo:         companyRepo,
+		companyFollowerRepo: companyFollowerRepo,
 	}
 }
 
-func (s *CompanyService) Create(ctx context.Context, userID uuid.UUID, input company.CreateCompanyInput) (*company.Company, error) {
-	c := &company.Company{
-		OwnerID:       userID,
-		Name:          input.Name,
-		Description:   input.Description,
-		LogoURL:       &input.LogoURL,
-		BusinessEmail: &input.BusinessEmail,
-		BusinessPhone: &input.BusinessPhone,
-		City:          input.City,
-		State:         input.State,
-		Pincode:       input.Pincode,
-		IsApproved:    false,
-		IsActive:      true,
+func (s *CompanyService) Create(ctx context.Context, userID uuid.UUID, c company.Company) (*company.Company, error) {
+
+	existing, err := s.companyRepo.GetByOwnerAndName(ctx, userID, c.Name)
+	if err != nil {
+		return nil, fmt.Errorf("fialed to check existing company:%w", err)
 	}
 
-	return s.companyRepo.Create(ctx, c)
+	if existing != nil {
+		return nil, errors.New("company already present by your name")
+	}
+
+	c.OwnerID = userID
+	c.IsActive = true
+	c.IsApproved = false
+
+	if c.ProductVisibility == "" {
+		c.ProductVisibility = company.ProductVisibilityPublic
+	}
+
+	return s.companyRepo.Create(ctx, &c)
 }
-func (s *CompanyService) ListByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]company.Company, error) {
-	return s.companyRepo.ListByOwnerID(ctx, ownerID)
+func (s *CompanyService) GetByID(ctx context.Context, id uuid.UUID, userID *uuid.UUID) (*company.CompanyResponse, error) {
+	c, err := s.companyRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("company not found: %w", err)
+	}
+
+	var isFollowing *bool
+	if userID != nil {
+		following, err := s.companyFollowerRepo.IsFollowing(ctx, id, *userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check follow status: %w", err)
+		}
+		isFollowing = &following
+	}
+
+	return company.ToCompanyResponse(c, isFollowing), nil
 }
-func (s *CompanyService) ListPending(ctx context.Context) ([]company.Company, error) {
-	return s.companyRepo.ListPending(ctx)
+func (s *CompanyService) List(ctx context.Context, userID *uuid.UUID, filter repository.CompanyFilter) (*model.PaginatedResponse[company.CompanyResponse], error) {
+	result, err := s.companyRepo.List(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list companies:%w", err)
+	}
+
+	followStatusMap := make(map[uuid.UUID]bool)
+	if userID != nil {
+		companyIDs := make([]uuid.UUID, len(result.Data))
+		for i, company := range result.Data {
+			companyIDs[i] = company.ID
+		}
+
+		followStatusMap, err = s.companyFollowerRepo.GetFollowStatusBatch(ctx, companyIDs, *userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get follow statuses: %w", err)
+		}
+	}
+
+	return company.MapCompanyPage(result, followStatusMap), nil
+
 }
 
-func (s *CompanyService) DeleteCompany(ctx context.Context, adminID uuid.UUID, companyID uuid.UUID) error {
+func (s *CompanyService) Update(ctx context.Context, userID uuid.UUID, companyID uuid.UUID, updates *company.UpdateCompanyRequest) (*company.Company, error) {
 
-	c, err :=s.companyRepo.GetByID(ctx, companyID)
+	existing, err := s.companyRepo.GetByID(ctx, companyID)
+	if err != nil {
+		return nil, fmt.Errorf("company not found: %w", err)
+	}
+
+	if existing.OwnerID != userID {
+		return nil, errors.New("unauthorized to update the company")
+	}
+
+	if updates.Name != nil {
+		duplicate, err := s.companyRepo.GetByOwnerAndName(ctx, userID, *updates.Name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check duplicate name: %w", err)
+		}
+
+		if duplicate != nil && duplicate.ID != companyID {
+			return nil, errors.New("company name already exists")
+		}
+		existing.Name = *updates.Name
+	}
+
+	if updates.Description != nil {
+		existing.Description = updates.Description
+	}
+	if updates.LogoURL != nil {
+		existing.LogoURL = updates.LogoURL
+	}
+	if updates.BusinessEmail != nil {
+		existing.BusinessEmail = updates.BusinessEmail
+	}
+	if updates.BusinessPhone != nil {
+		existing.BusinessPhone = updates.BusinessPhone
+	}
+	if updates.City != nil {
+		existing.City = updates.City
+	}
+	if updates.State != nil {
+		existing.State = updates.State
+	}
+	if updates.Pincode != nil {
+		existing.Pincode = updates.Pincode
+	}
+	if updates.ProductVisibility != nil {
+		existing.ProductVisibility = *updates.ProductVisibility
+	}
+	if updates.IsActive != nil {
+		existing.IsActive = *updates.IsActive
+	}
+
+	return s.companyRepo.Update(ctx, existing)
+}
+
+func (s *CompanyService) Delete(ctx context.Context, userID uuid.UUID, companyID uuid.UUID) error {
+	existing, err := s.companyRepo.GetByID(ctx, companyID)
 	if err != nil {
 		return err
 	}
-
-	if !c.IsActive {
-		return errors.New("company already deleted")
+	if existing.OwnerID != userID {
+		return errors.New("unauthorized to delete the company")
 	}
-	
-
-	return s.companyRepo.SoftDelete(ctx, companyID)
+	return s.companyRepo.Delete(ctx, companyID)
 }
-func (s *CompanyService) ApproveCompany(ctx context.Context, adminID uuid.UUID, companyID uuid.UUID) error {
-	c, err := s.companyRepo.GetByID(ctx, companyID)
+func (s *CompanyService) Approve(ctx context.Context, companyID uuid.UUID, adminID uuid.UUID) error {
+	_, err := s.companyRepo.GetByID(ctx, companyID)
 	if err != nil {
 		return err
 	}
-
-	now := time.Now()
-	if c.IsApproved {
-		return errors.New("company already approved")
-	}
-	c.IsApproved = true
-	c.ApprovedBy = &adminID
-	c.ApprovedAt = &now
-
-	return s.companyRepo.Approve(ctx, adminID, companyID)
+	return s.companyRepo.Approve(ctx, companyID, adminID)
 }
 
-func (s *CompanyService) RejectCompany(ctx context.Context, companyID uuid.UUID) error {
-	c, err := s.companyRepo.GetByID(ctx, companyID)
+//follow methids
+
+func (s *CompanyService) Follow(ctx context.Context, companID, userID uuid.UUID) error {
+	comp, err := s.companyRepo.GetByID(ctx, companID)
 	if err != nil {
-		return err
+		return fmt.Errorf("company not found: %w", err)
 	}
-	if c.IsApproved {
-		return errors.New("company already approved")
+
+	if !comp.IsApproved {
+		return errors.New("connot follow unapproved company")
 	}
-	return s.companyRepo.Reject(ctx, companyID)
+	if !comp.IsActive {
+		return errors.New("connot follow inactive company")
+	}
+
+	if comp.OwnerID == userID {
+		return errors.New("connot follow own company")
+	}
+
+	_, err = s.companyFollowerRepo.Follow(ctx, companID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to follow company: %w", err)
+	}
+
+	return nil
+}
+
+func (s *CompanyService) Unfollow(ctx context.Context, companID, userID uuid.UUID) error {
+	return s.companyFollowerRepo.Unfollow(ctx, companID, userID)
+}
+
+func (s *CompanyService) GetFollowStatus(ctx context.Context, companyID uuid.UUID, userID uuid.UUID) (*company.FollowStatusResponse, error) {
+	follower, err := s.companyFollowerRepo.GetFollowStatus(ctx, companyID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get follow status : %w", err)
+
+	}
+
+	resp := &company.FollowStatusResponse{
+		CompanyID:   companyID,
+		IsFollowing: follower != nil,
+	}
+
+	if follower != nil {
+		resp.FollowedAt = &follower.FollowedAt
+	}
+	return resp, nil
+}
+
+func (s *CompanyService) ListFollowers(ctx context.Context, companyID uuid.UUID, page, limit int) (*model.PaginatedResponse[company.CompanyFollowerResponse], error) {
+	return s.companyFollowerRepo.ListFollowers(ctx, companyID, page, limit)
+}
+
+func (s *CompanyService) ListFollowedCompanies(ctx context.Context, userID uuid.UUID, page, limit int) (*model.PaginatedResponse[company.CompanyResponse], error) {
+	res, err := s.companyFollowerRepo.ListFollowedCompanies(ctx, userID, page, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list followed companies: %w", err)
+	}
+
+	followStatusMap := make(map[uuid.UUID]bool)
+	for _, c := range res.Data {
+		followStatusMap[c.ID] = true
+	}
+
+	return company.MapCompanyPage(res, followStatusMap), nil
+}
+
+func (s *CompanyService) CanViewProducts(ctx context.Context, companyID uuid.UUID, userID *uuid.UUID) (bool, error) {
+	return s.companyFollowerRepo.CanViewProducts(ctx, companyID, userID)
 }

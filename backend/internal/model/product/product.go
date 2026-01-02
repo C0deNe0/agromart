@@ -9,13 +9,13 @@ import (
 type Product struct {
 	model.Base
 	CompanyID   uuid.UUID       `json:"companyId" db:"company_id"`
+	CategoryID  *uuid.UUID      `json:"categoryId,omitempty" db:"category_id"`
 	Name        string          `json:"name" db:"name"`
 	Description *string         `json:"description,omitempty" db:"description"`
 	Price       decimal.Decimal `json:"price" db:"price"`
 	Unit        string          `json:"unit" db:"unit"`
 	Origin      *string         `json:"origin,omitempty" db:"origin"`
 	IsActive    bool            `json:"isActive" db:"is_active"`
-	// CategoryID  *uuid.UUID      `json:"categoryId,omitempty" db:"category_id"`
 }
 
 // for the product images

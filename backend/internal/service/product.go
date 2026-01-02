@@ -9,46 +9,44 @@ import (
 	"github.com/C0deNe0/agromart/internal/model/product"
 	"github.com/C0deNe0/agromart/internal/repository"
 	"github.com/google/uuid"
-	"github.com/shopspring/decimal"
 )
 
 type ProductService struct {
-	productRepo *repository.ProductRepository
-	companyRepo *repository.CompanyRepository
+	productRepo  *repository.ProductRepository
+	companyRepo  *repository.CompanyRepository
+	categoryRepo *repository.CategoryRepository
 }
 
-func NewProductService(productRepo *repository.ProductRepository, companyRepo *repository.CompanyRepository) *ProductService {
+func NewProductService(productRepo *repository.ProductRepository, companyRepo *repository.CompanyRepository, categoryRepo *repository.CategoryRepository) *ProductService {
 	return &ProductService{
-		productRepo: productRepo,
-		companyRepo: companyRepo,
+		productRepo:  productRepo,
+		companyRepo:  companyRepo,
+		categoryRepo: categoryRepo,
 	}
 }
 
-func (s *ProductService) Create(ctx context.Context, userID uuid.UUID, input product.ProductCreateInput) (*product.Product, error) {
+func (s *ProductService) Create(ctx context.Context, userID uuid.UUID, p *product.Product) (*product.Product, error) {
 
 	//check if comp exists
-	company, err := s.companyRepo.GetByID(ctx, input.CompanyID)
+	company, err := s.companyRepo.GetByID(ctx, p.CompanyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get company by id: %w", err)
 	}
 
+	//check the user
 	if company.OwnerID != userID {
 		return nil, fmt.Errorf("not autorized to create product for this company")
 	}
-
+	//company is approved
 	if !company.IsApproved {
 		return nil, fmt.Errorf("company is not approved")
 	}
 
-	p := &product.Product{
-		CompanyID:   input.CompanyID,
-		Name:        input.Name,
-		Description: input.Description,
-		// CategoryID:  input.CategoryID,
-		Unit:     *input.Unit,
-		Origin:   input.Origin,
-		Price:    input.Price,
-		IsActive: true,
+	if p.CategoryID != nil {
+		_, err := s.categoryRepo.GetByID(ctx, *p.CategoryID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid category:%w", err)
+		}
 	}
 
 	return s.productRepo.Create(ctx, p)
@@ -58,10 +56,14 @@ func (s *ProductService) List(ctx context.Context, filter repository.ProductFilt
 	return s.productRepo.List(ctx, filter)
 }
 
-func (s *ProductService) Update(ctx context.Context, userID uuid.UUID, p product.ProductUpdateInput) (*product.Product, error) {
-	existing, err := s.productRepo.GetByID(ctx, p.ID)
+func (s *ProductService) ListWithCategory(ctx context.Context, filter repository.ProductFilter) (*model.PaginatedResponse[product.ProductWithCategoryResponse], error) {
+	return s.productRepo.ListWithCategory(ctx, filter)
+}
+
+func (s *ProductService) Update(ctx context.Context, userID uuid.UUID, productID uuid.UUID, p *product.UpdateProductRequest) (*product.Product, error) {
+	existing, err := s.productRepo.GetByID(ctx, productID)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't find product: %w", err)
+		return nil, fmt.Errorf("product not found: %w", err)
 	}
 
 	company, err := s.companyRepo.GetByID(ctx, existing.CompanyID)
@@ -73,23 +75,30 @@ func (s *ProductService) Update(ctx context.Context, userID uuid.UUID, p product
 		return nil, fmt.Errorf("not authorized to update product")
 	}
 
+	if p.CategoryID != nil {
+		_, err := s.categoryRepo.GetByID(ctx, *p.CategoryID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid category:%w", err)
+		}
+		existing.CategoryID = p.CategoryID
+	}
+
+
 	if p.Name != nil {
 		existing.Name = *p.Name
 	}
 	if p.Description != nil {
 		existing.Description = p.Description
 	}
-	// if p.CategoryID != nil {
-	// 	existing.CategoryID = p.CategoryID
-	// }
+	
 	if p.Unit != nil {
 		existing.Unit = *p.Unit
 	}
 	if p.Origin != nil {
 		existing.Origin = p.Origin
 	}
-	if p.Price != decimal.Zero {
-		existing.Price = p.Price
+	if p.Price != nil {
+		existing.Price = *p.Price
 	}
 	if p.IsActive != nil {
 		existing.IsActive = *p.IsActive
@@ -109,12 +118,12 @@ func (s *ProductService) GetByID(ctx context.Context, id uuid.UUID) (*product.Pr
 func (s *ProductService) Delete(ctx context.Context, userID uuid.UUID, id uuid.UUID) error {
 	existing, err := s.productRepo.GetByID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("couldn't find product: %w", err)
+		return fmt.Errorf("product not found: %w", err)
 	}
 
 	company, err := s.companyRepo.GetByID(ctx, existing.CompanyID)
 	if err != nil {
-		return fmt.Errorf("company doesn't exist")
+		return fmt.Errorf("company not found: %w", err)
 	}
 
 	if company.OwnerID != userID {

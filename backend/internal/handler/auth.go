@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/C0deNe0/agromart/internal/lib/utils"
+	"github.com/C0deNe0/agromart/internal/model/auth"
 	"github.com/C0deNe0/agromart/internal/model/user"
 	"github.com/C0deNe0/agromart/internal/service"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -20,11 +20,10 @@ import (
 
 type AuthHandler struct {
 	authService *service.AuthService
-	googleOAuth *utils.GoogleOAuth
 }
 
-func NewAuthHandler(authService *service.AuthService, googleOAuth *utils.GoogleOAuth) *AuthHandler {
-	return &AuthHandler{authService: authService, googleOAuth: googleOAuth}
+func NewAuthHandler(authService *service.AuthService) *AuthHandler {
+	return &AuthHandler{authService: authService}
 }
 
 func (h *AuthHandler) Register() echo.HandlerFunc {
@@ -49,86 +48,6 @@ func (h *AuthHandler) Login() echo.HandlerFunc {
 		http.StatusOK,
 	)
 
-}
-
-func (h *AuthHandler) GoogleLogin() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		state := uuid.New().String()
-
-		//store state in HTTP only cookie for 5 min
-
-		c.SetCookie(&http.Cookie{
-			Name:     "oauth_state",
-			Value:    state,
-			Path:     "/",
-			HttpOnly: true,
-			Secure:   true,
-			MaxAge:   300,
-			// Expires:  time.Now().Add(5 * time.Minute),
-			SameSite: http.SameSiteLaxMode,
-		})
-
-		return c.Redirect(
-			http.StatusTemporaryRedirect,
-			h.googleOAuth.AuthURL(state),
-		)
-	}
-}
-
-func (h *AuthHandler) GoogleCallback() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		state := c.QueryParam("state")
-		if state == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, "state is required")
-		}
-		code := c.QueryParam("code")
-		if code == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, "code is required")
-		}
-
-		//validate state
-		cookie, err := c.Cookie("oauth_state")
-		if err != nil {
-			return echo.NewHTTPError(http.StatusBadRequest, "state is required")
-		}
-		if cookie.Value != state {
-			return echo.NewHTTPError(http.StatusBadRequest, "state does not match")
-		}
-
-		//clearing after use
-		c.SetCookie(&http.Cookie{
-			Name:     "oauth_state",
-			Value:    "",
-			Path:     "/",
-			HttpOnly: true,
-			Secure:   true,
-			MaxAge:   -1,
-			SameSite: http.SameSiteLaxMode,
-		})
-
-		token, err := h.googleOAuth.Exchange(c.Request().Context(), code)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-		}
-
-		googleUser, err := utils.FetchGoogleUser(token.AccessToken)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-		}
-
-		resp, err := h.authService.LoginWithGoogle(c.Request().Context(),
-			googleUser.Sub,
-			googleUser.Email,
-			googleUser.Name,
-			&googleUser.Picture,
-		)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-		}
-
-		return c.JSON(http.StatusOK, resp)
-
-	}
 }
 
 func (h *AuthHandler) Logout() echo.HandlerFunc {
@@ -179,6 +98,36 @@ func (h *AuthHandler) Refresh() echo.HandlerFunc {
 	}
 }
 
+// package handler...
+
+func (h *AuthHandler) LoginWithGoogleIDToken() echo.HandlerFunc {
+	return Handle(
+		&auth.GoogleIDTokenRequest{},
+		func(c echo.Context, req *auth.GoogleIDTokenRequest) (*user.AuthResponse, error) {
+
+			googleUserClaims, err := utils.VerifyGoogleIDToken(c.Request().Context(), req.IDToken)
+			if err != nil {
+				return nil, echo.NewHTTPError(http.StatusUnauthorized, "Invalid Google ID Token"+err.Error())
+			}
+
+			// 2. Call the service layer to handle login/registration using the verified claims
+			resp, err := h.authService.LoginWithGoogle(
+				c.Request().Context(),
+				googleUserClaims.Sub,
+				googleUserClaims.Email,
+				googleUserClaims.Name,
+				&googleUserClaims.Picture,
+			)
+			if err != nil {
+				return nil, echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+			}
+
+			return resp, nil
+		},
+		http.StatusOK,
+	)
+}
+
 //REGISTER----------
 
 // HTTP → Handler → AuthService
@@ -202,3 +151,83 @@ func (h *AuthHandler) Refresh() echo.HandlerFunc {
 //      → AuthService.LoginWithGoogle
 //      → TokenManager.Generate
 //      → Response
+
+// func (h *AuthHandler) GoogleLogin() echo.HandlerFunc {
+// 	return func(c echo.Context) error {
+// 		state := uuid.New().String()
+
+// 		//store state in HTTP only cookie for 5 min
+
+// 		c.SetCookie(&http.Cookie{
+// 			Name:     "oauth_state",
+// 			Value:    state,
+// 			Path:     "/",
+// 			HttpOnly: true,
+// 			Secure:   true,
+// 			MaxAge:   300,
+// 			// Expires:  time.Now().Add(5 * time.Minute),
+// 			SameSite: http.SameSiteLaxMode,
+// 		})
+
+// 		return c.Redirect(
+// 			http.StatusTemporaryRedirect,
+// 			h.googleOAuth.AuthURL(state),
+// 		)
+// 	}
+// }
+
+// func (h *AuthHandler) GoogleCallback() echo.HandlerFunc {
+// 	return func(c echo.Context) error {
+// 		state := c.QueryParam("state")
+// 		if state == "" {
+// 			return echo.NewHTTPError(http.StatusBadRequest, "state is required")
+// 		}
+// 		code := c.QueryParam("code")
+// 		if code == "" {
+// 			return echo.NewHTTPError(http.StatusBadRequest, "code is required")
+// 		}
+
+// 		//validate state
+// 		cookie, err := c.Cookie("oauth_state")
+// 		if err != nil {
+// 			return echo.NewHTTPError(http.StatusBadRequest, "state is required")
+// 		}
+// 		if cookie.Value != state {
+// 			return echo.NewHTTPError(http.StatusBadRequest, "state does not match")
+// 		}
+
+// 		//clearing after use
+// 		c.SetCookie(&http.Cookie{
+// 			Name:     "oauth_state",
+// 			Value:    "",
+// 			Path:     "/",
+// 			HttpOnly: true,
+// 			Secure:   true,
+// 			MaxAge:   -1,
+// 			SameSite: http.SameSiteLaxMode,
+// 		})
+
+// 		token, err := h.googleOAuth.Exchange(c.Request().Context(), code)
+// 		if err != nil {
+// 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+// 		}
+
+// 		googleUser, err := utils.FetchGoogleUser(token.AccessToken)
+// 		if err != nil {
+// 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+// 		}
+
+// 		resp, err := h.authService.LoginWithGoogle(c.Request().Context(),
+// 			googleUser.Sub,
+// 			googleUser.Email,
+// 			googleUser.Name,
+// 			&googleUser.Picture,
+// 		)
+// 		if err != nil {
+// 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+// 		}
+
+// 		return c.JSON(http.StatusOK, resp)
+
+// 	}
+// }

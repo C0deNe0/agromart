@@ -33,6 +33,7 @@ func (r *ProductRepository) Create(ctx context.Context, p *product.Product) (*pr
 	stmt := `
 	INSERT INTO products (
 			company_id,
+			category_id,
 			name,
 			description,
 			unit,
@@ -42,6 +43,7 @@ func (r *ProductRepository) Create(ctx context.Context, p *product.Product) (*pr
 		)
 		VALUES (
 			@company_id,
+			@category_id,
 			@name,
 			@description,
 			@unit,
@@ -53,6 +55,7 @@ func (r *ProductRepository) Create(ctx context.Context, p *product.Product) (*pr
 
 	rows, err := r.db.Query(ctx, stmt, pgx.NamedArgs{
 		"company_id":  p.CompanyID,
+		"category_id": p.CategoryID,
 		"name":        p.Name,
 		"description": p.Description,
 		"unit":        p.Unit,
@@ -98,12 +101,12 @@ func (r *ProductRepository) List(ctx context.Context, filter ProductFilter) (*mo
 	args := pgx.NamedArgs{}
 
 	if filter.CompanyID != nil {
-		base += ` AND company_id=@company_id`
+		base += ` AND company_id = @company_id`
 		args["company_id"] = *filter.CompanyID
 	}
 
 	if filter.CategoryID != nil {
-		base += ` AND category_id=@category_id`
+		base += ` AND category_id = @category_id` // ✅ ADD THIS
 		args["category_id"] = *filter.CategoryID
 	}
 
@@ -113,17 +116,17 @@ func (r *ProductRepository) List(ctx context.Context, filter ProductFilter) (*mo
 	}
 
 	if filter.IsActive != nil {
-		base += ` AND is_active=@is_active`
+		base += ` AND is_active = @is_active`
 		args["is_active"] = *filter.IsActive
 	}
 
-	//counting
+	// Counting
 	var total int
 	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) `+base, args).Scan(&total); err != nil {
 		return nil, fmt.Errorf("failed to count products: %w", err)
 	}
 
-	//data
+	// Data
 	stmt := `SELECT * ` + base + ` ORDER BY created_at DESC LIMIT @limit OFFSET @offset`
 
 	args["limit"] = filter.Limit
@@ -146,7 +149,6 @@ func (r *ProductRepository) List(ctx context.Context, filter ProductFilter) (*mo
 		Limit:      filter.Limit,
 		TotalPages: (total + filter.Limit - 1) / filter.Limit,
 	}, nil
-
 }
 
 func (r *ProductRepository) Update(ctx context.Context, p *product.Product) (*product.Product, error) {
@@ -159,7 +161,8 @@ func (r *ProductRepository) Update(ctx context.Context, p *product.Product) (*pr
 			unit=@unit,
 			origin=@origin,
 			price=@price,
-			is_active=@is_active
+			is_active=@is_active,
+			updated_at= NOW()
 		WHERE id=@id
 		RETURNING *
 	`
@@ -168,6 +171,7 @@ func (r *ProductRepository) Update(ctx context.Context, p *product.Product) (*pr
 		"id":          p.ID,
 		"name":        p.Name,
 		"description": p.Description,
+		"category_id": p.CategoryID,
 		"unit":        p.Unit,
 		"origin":      p.Origin,
 		"price":       p.Price,
@@ -197,4 +201,93 @@ func (r *ProductRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("failed to delete product: %w", err)
 	}
 	return nil
+}
+
+// get product with category name
+func (r *ProductRepository) ListWithCategory(ctx context.Context, filter ProductFilter) (*model.PaginatedResponse[product.ProductWithCategoryResponse], error) {
+	base := `
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE 1=1
+    `
+	args := pgx.NamedArgs{}
+
+	if filter.CompanyID != nil {
+		base += ` AND p.company_id = @company_id`
+		args["company_id"] = *filter.CompanyID
+	}
+
+	if filter.CategoryID != nil {
+		base += ` AND p.category_id = @category_id`
+		args["category_id"] = *filter.CategoryID
+	}
+
+	if filter.Search != nil {
+		base += ` AND p.name ILIKE @search`
+		args["search"] = "%" + *filter.Search + "%"
+	}
+
+	if filter.IsActive != nil {
+		base += ` AND p.is_active = @is_active`
+		args["is_active"] = *filter.IsActive
+	}
+
+	// Counting
+	var total int
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) `+base, args).Scan(&total); err != nil {
+		return nil, fmt.Errorf("failed to count products: %w", err)
+	}
+
+	// Data with category name
+	stmt := `
+        SELECT 
+            p.*,
+            c.name as category_name
+    ` + base + ` ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset`
+
+	args["limit"] = filter.Limit
+	args["offset"] = (filter.Page - 1) * filter.Limit
+
+	rows, err := r.db.Query(ctx, stmt, args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get products: %w", err)
+	}
+	defer rows.Close()
+
+	var items []product.ProductWithCategoryResponse
+	for rows.Next() {
+		var p product.Product
+		var categoryName *string
+
+		err := rows.Scan(
+			&p.ID,
+			&p.CreatedAt,
+			&p.UpdatedAt,
+			&p.CompanyID,
+			&p.CategoryID,
+			&p.Name,
+			&p.Description,
+			&p.Price,
+			&p.Unit,
+			&p.Origin,
+			&p.IsActive,
+			&categoryName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		items = append(items, product.ProductWithCategoryResponse{
+			ProductResponse: *product.ToProductResponse(&p),
+			CategoryName:    categoryName,
+		})
+	}
+
+	return &model.PaginatedResponse[product.ProductWithCategoryResponse]{
+		Data:       items,
+		Total:      total,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+		TotalPages: (total + filter.Limit - 1) / filter.Limit,
+	}, nil
 }

@@ -2,39 +2,54 @@ package utils
 
 import (
 	"context"
+	"errors"
 
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
+	"google.golang.org/api/idtoken"
 )
 
-type GoogleOAuth struct {
-	config *oauth2.Config
+type GoogleUserClaims struct {
+	Sub     string // Google user ID (unique identifier)
+	Email   string
+	Name    string
+	Picture string // URL to the profile picture
 }
 
-func NewGoogleOAuth(
-	clientID string,
-	clientSecret string,
-	redirectURL string,
-) *GoogleOAuth {
-	return &GoogleOAuth{
-		config: &oauth2.Config{
-			ClientID:     clientID,
-			ClientSecret: clientSecret,
-			RedirectURL:  redirectURL,
-			Scopes: []string{
-				"openid",
-				"email",
-				"profile",
-			},
-			Endpoint: google.Endpoint,
-		},
+// NOTE: Replace this with the actual CLIENT ID of your Mobile Application
+// (e.g., the Android/iOS client ID from your Google Cloud Console OAuth credentials).
+
+const MobileClientID = "YOUR_MOBILE_APP_CLIENT_ID_HERE"
+
+
+
+
+// VerifyGoogleIDToken securely validates the JWT ID Token and extracts user claims.
+func VerifyGoogleIDToken(ctx context.Context, idToken string) (*GoogleUserClaims, error) {
+
+	payload, err := idtoken.Validate(ctx, idToken, MobileClientID)
+	if err != nil {
+		return nil, errors.New("google ID token verification failed: " + err.Error())
 	}
+
+	email, ok := payload.Claims["email"].(string)
+	if !ok || email == "" {
+		return nil, errors.New("email claim is missing or invalid")
+	}
+
+	name, ok := payload.Claims["name"].(string)
+	if !ok || name == "" {
+		return nil, errors.New("name claim is missing or invalid")
+	}
+
+	// 5. Success: Map the verified claims to your local struct
+	claims := &GoogleUserClaims{
+		Sub:     payload.Subject, // User ID is exposed as UserId in Tokeninfo response
+		Email:   email,
+		Name:    name,
+		Picture: payload.Claims["picture"].(string),
+	}
+
+	return claims, nil
 }
 
-func (g *GoogleOAuth) AuthURL(state string) string {
-	return g.config.AuthCodeURL(state)
-}
-
-func (g *GoogleOAuth) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
-	return g.config.Exchange(ctx, code)
-}
+// NOTE: The GoogleOAuth struct and its methods (NewGoogleOAuth, AuthURL, Exchange)
+// have been REMOVED as they are no longer needed for the mobile ID Token flow.

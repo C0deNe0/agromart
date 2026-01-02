@@ -19,7 +19,7 @@ func NewHandlers(s *service.Services) Handlers {
 		User:    NewUserHandler(s.User),
 		Company: NewCompanyHandler(s.Company),
 		Product: NewProductHandler(s.Product),
-		Auth:    NewAuthHandler(s.Auth, s.GoogleOAuth),
+		Auth:    NewAuthHandler(s.Auth),
 		Upload:  NewUploadHandler(s.Upload),
 	}
 }
