@@ -11,3 +11,12 @@ func (g *GoogleIDTokenRequest) Validate() error {
 	validate := validator.New()
 	return validate.Struct(g)
 }
+
+type LogoutRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
+func (l *LogoutRequest) Validate() error {
+	validate := validator.New()
+	return validate.Struct(l)
+}

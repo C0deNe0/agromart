@@ -9,9 +9,13 @@ import (
 	"github.com/google/uuid"
 )
 
-type Claims struct {
+type AccessClaims struct {
 	UserID uuid.UUID `json:"user_id"`
 	Role   string    `json:"role"`
+	jwt.RegisteredClaims
+}
+type RefreshClaims struct {
+	UserID uuid.UUID `json:"user_id"`
 	jwt.RegisteredClaims
 }
 
@@ -26,16 +30,19 @@ func NewTokenManager(accessSecret string, refreshSecret string) *TokenManager {
 	return &TokenManager{
 		AccessSecret:  accessSecret,
 		RefreshSecret: refreshSecret,
-		AccessTTL:     15 * time.Hour,
+		AccessTTL:     15 * time.Minute,
 		RefreshTTL:    7 * 24 * time.Hour,
 	}
 }
 
 func (tm *TokenManager) GenerateAccessToken(userID uuid.UUID, role string) (string, error) {
-	claims := &Claims{
+	claims := &AccessClaims{
 		UserID: userID,
 		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    "agromart-api",
+			Audience:  []string{"mobile"},
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tm.AccessTTL)),
 		},
 	}
@@ -44,11 +51,13 @@ func (tm *TokenManager) GenerateAccessToken(userID uuid.UUID, role string) (stri
 	return token.SignedString([]byte(tm.AccessSecret))
 }
 
-func (tm *TokenManager) GenerateRefreshToken(userID uuid.UUID, role string) (string, error) {
-	claims := &Claims{
+func (tm *TokenManager) GenerateRefreshToken(userID uuid.UUID) (string, error) {
+	claims := &RefreshClaims{
 		UserID: userID,
-		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    "agromart-api",
+			Audience:  []string{"mobile"},
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tm.RefreshTTL)),
 		},
 	}
@@ -57,9 +66,9 @@ func (tm *TokenManager) GenerateRefreshToken(userID uuid.UUID, role string) (str
 	return token.SignedString([]byte(tm.RefreshSecret))
 }
 
-func (tm *TokenManager) ParseAccessToken(tokenStr string) (*Claims, error) {
+func (tm *TokenManager) ParseAccessToken(tokenStr string) (*AccessClaims, error) {
 
-	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (any, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &AccessClaims{}, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -72,7 +81,7 @@ func (tm *TokenManager) ParseAccessToken(tokenStr string) (*Claims, error) {
 		return nil, err
 	}
 
-	claims, ok := token.Claims.(*Claims)
+	claims, ok := token.Claims.(*AccessClaims)
 	if !ok || !token.Valid {
 		return nil, jwt.ErrTokenInvalidClaims
 	}
@@ -80,8 +89,8 @@ func (tm *TokenManager) ParseAccessToken(tokenStr string) (*Claims, error) {
 	return claims, nil
 }
 
-func (tm *TokenManager) ParseRefreshToken(tokenStr string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (any, error) {
+func (tm *TokenManager) ParseRefreshToken(tokenStr string) (*RefreshClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &RefreshClaims{}, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -94,7 +103,7 @@ func (tm *TokenManager) ParseRefreshToken(tokenStr string) (*Claims, error) {
 		return nil, err
 	}
 
-	claims, ok := token.Claims.(*Claims)
+	claims, ok := token.Claims.(*RefreshClaims)
 	if !ok || !token.Valid {
 		return nil, jwt.ErrTokenInvalidClaims
 	}

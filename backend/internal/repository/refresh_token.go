@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/C0deNe0/agromart/internal/model/auth"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -71,6 +72,9 @@ func (r *RefreshTokenRepository) FindValid(ctx context.Context, tokenHash string
 		&rt.UpdatedAt,
 	)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	return &rt, nil
@@ -83,10 +87,16 @@ func (r *RefreshTokenRepository) Revoke(ctx context.Context, tokenHash string) e
 		WHERE token_hash = @token_hash
 		AND revoked_at IS NULL
 	`
-	_, err := r.db.Exec(ctx, stmt, pgx.NamedArgs{
+	ct, err := r.db.Exec(ctx, stmt, pgx.NamedArgs{
 		"token_hash": tokenHash,
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *RefreshTokenRepository) RevokeAllForUser(ctx context.Context, userID uuid.UUID) error {
@@ -96,37 +106,43 @@ func (r *RefreshTokenRepository) RevokeAllForUser(ctx context.Context, userID uu
 		WHERE user_id = @user_id
 		AND revoked_at IS NULL
 	`
-	_, err := r.db.Exec(ctx, stmt, pgx.NamedArgs{
+	ct, err := r.db.Exec(ctx, stmt, pgx.NamedArgs{
 		"user_id": userID,
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
-func (r *RefreshTokenRepository) IsValid(ctx context.Context, userID uuid.UUID, tokenHash string) (bool, error) {
-	query := `SELECT *
-	FROM refresh_token
-	WHERE user_id = $1
-	AND token_hash = $2
-	AND revoked_at IS NULL
-	AND expires_at > NOW()
-	`
-	var rt auth.RefreshToken
-	err := r.db.QueryRow(ctx, query, userID, tokenHash).Scan(
-		&rt.ID,
-		&rt.UserID,
-		&rt.TokenHash,
-		&rt.UserAgent,
-		&rt.IPAddress,
-		&rt.ExpiresAt,
-		&rt.RevokedAt,
-		&rt.CreatedAt,
-		&rt.UpdatedAt,
-	)
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-}
+// func (r *RefreshTokenRepository) IsValid(ctx context.Context, userID uuid.UUID, tokenHash string) (bool, error) {
+// 	query := `SELECT *
+// 	FROM refresh_token
+// 	WHERE user_id = $1
+// 	AND token_hash = $2
+// 	AND revoked_at IS NULL
+// 	AND expires_at > NOW()
+// 	`
+// 	var rt auth.RefreshToken
+// 	err := r.db.QueryRow(ctx, query, userID, tokenHash).Scan(
+// 		&rt.ID,
+// 		&rt.UserID,
+// 		&rt.TokenHash,
+// 		&rt.UserAgent,
+// 		&rt.IPAddress,
+// 		&rt.ExpiresAt,
+// 		&rt.RevokedAt,
+// 		&rt.CreatedAt,
+// 		&rt.UpdatedAt,
+// 	)
+// 	if err != nil {
+// 		return false, err
+// 	}
+// 	return true, nil
+// }
 
 // ✔ multiple devices per user
 // ✔ logout (single device)

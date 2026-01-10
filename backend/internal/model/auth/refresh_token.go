@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/C0deNe0/agromart/internal/model"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
 
@@ -18,17 +19,17 @@ type RefreshToken struct {
 	RevokedAt *time.Time `json:"-" db:"revoked_at"`
 }
 
-// type RefreshRequest struct {
-// 	RefreshToken string `json:"refresh_token" validate:"required"`
-// }
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
 
-// func (r *RefreshRequest) Validate() error {
-// 	validate := validator.New()
-// 	if err := validate.Struct(r); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func (r *RefreshRequest) Validate() error {
+	validate := validator.New()
+	if err := validate.Struct(r); err != nil {
+		return err
+	}
+	return nil
+}
 
 // Refresh Token
 

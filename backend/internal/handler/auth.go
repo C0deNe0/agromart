@@ -10,14 +10,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// OAuth is not business logic, and not HTTP logic either.
-// It is an external integration dependency.
-
-// So it should be:
-// ------Created once
-// ------Injected
-// ------Not recreated per request
-
 type AuthHandler struct {
 	authService *service.AuthService
 }
@@ -30,7 +22,12 @@ func (h *AuthHandler) Register() echo.HandlerFunc {
 	return Handle(
 		&user.RegisterRequest{},
 		func(c echo.Context, req *user.RegisterRequest) (*user.AuthResponse, error) {
-			return h.authService.RegisterWithEmail(c.Request().Context(), req.Email, req.Password, req.Name)
+			return h.authService.RegisterWithEmail(
+				c.Request().Context(),
+				req.Email,
+				req.Password,
+				req.Name,
+			)
 		},
 		http.StatusCreated,
 	)
@@ -40,7 +37,8 @@ func (h *AuthHandler) Login() echo.HandlerFunc {
 	return Handle(
 		&user.LoginRequest{},
 		func(c echo.Context, req *user.LoginRequest) (*user.AuthResponse, error) {
-			return h.authService.LoginWithEmail(c.Request().Context(),
+			return h.authService.LoginWithEmail(
+				c.Request().Context(),
 				req.Email,
 				req.Password,
 			)
@@ -50,63 +48,53 @@ func (h *AuthHandler) Login() echo.HandlerFunc {
 
 }
 
-func (h *AuthHandler) Logout() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		authHeader := c.Request().Header.Get("Authorization")
-		if authHeader == "" {
-			return echo.NewHTTPError(http.StatusUnauthorized, "missing refresh token")
-		}
-
-		const prefix = "Bearer "
-		if len(authHeader) <= len(prefix) || authHeader[:len(prefix)] != prefix {
-			return echo.NewHTTPError(http.StatusUnauthorized, "invalid authorization header")
-		}
-
-		rawRefreshToken := authHeader[len(prefix):]
-		if err := h.authService.Logout(c.Request().Context(), rawRefreshToken); err != nil {
-			return echo.NewHTTPError(http.StatusUnauthorized, err.Error())
-		}
-		return c.JSON(http.StatusOK, echo.Map{
-			"message": "logged out successfully",
-		})
-	}
-}
-
 func (h *AuthHandler) Refresh() echo.HandlerFunc {
-	return func(c echo.Context) error {
-		authHeader := c.Request().Header.Get("Authorization")
-		if authHeader == "" {
-			return echo.NewHTTPError(http.StatusUnauthorized, "missing refresh token")
-		}
-
-		const prefix = "Bearer "
-		if len(authHeader) <= len(prefix) || authHeader[:len(prefix)] != prefix {
-			return echo.NewHTTPError(http.StatusUnauthorized, "invalid authorization header")
-		}
-
-		rawRefreshToken := authHeader[len(prefix):]
-
-		resp, err := h.authService.Refresh(
-			c.Request().Context(),
-			rawRefreshToken,
-		)
-		if err != nil {
-			return echo.NewHTTPError(http.StatusUnauthorized, err.Error())
-		}
-
-		return c.JSON(http.StatusOK, resp)
-	}
+	return Handle(
+		&auth.RefreshRequest{},
+		func(c echo.Context, req *auth.RefreshRequest) (*user.AuthResponse, error) {
+			resp, err := h.authService.Refresh(
+				c.Request().Context(),
+				req.RefreshToken,
+			)
+			if err != nil {
+				return nil, echo.NewHTTPError(
+					http.StatusUnauthorized,
+					"invalid or expired refresh token",
+				)
+			}
+			return resp, nil
+		},
+		http.StatusOK,
+	)
 }
 
-// package handler...
-
+func (h *AuthHandler) Logout() echo.HandlerFunc {
+	return Handle(
+		&auth.LogoutRequest{},
+		func(c echo.Context, req *auth.LogoutRequest) (map[string]interface{}, error) {
+			if err := h.authService.Logout(
+				c.Request().Context(),
+				req.RefreshToken,
+			); err != nil {
+				return nil, echo.NewHTTPError(http.StatusUnauthorized, "invalid or expired refresh token")
+			}
+			return map[string]interface{}{
+				"message": "logout successful",
+			}, nil
+		},
+		http.StatusOK,
+	)
+}
 func (h *AuthHandler) LoginWithGoogleIDToken() echo.HandlerFunc {
 	return Handle(
 		&auth.GoogleIDTokenRequest{},
 		func(c echo.Context, req *auth.GoogleIDTokenRequest) (*user.AuthResponse, error) {
 
-			googleUserClaims, err := utils.VerifyGoogleIDToken(c.Request().Context(), req.IDToken)
-			if err != nil {
+			googleUserClaims, err := utils.VerifyGoogleIDToken(
+				c.Request().Context(),
+				req.IDToken,
+			)
+			if err != nil || googleUserClaims.Email == "" {
 				return nil, echo.NewHTTPError(http.StatusUnauthorized, "Invalid Google ID Token"+err.Error())
 			}
 
@@ -119,7 +107,7 @@ func (h *AuthHandler) LoginWithGoogleIDToken() echo.HandlerFunc {
 				&googleUserClaims.Picture,
 			)
 			if err != nil {
-				return nil, echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+				return nil, echo.NewHTTPError(http.StatusInternalServerError, "authentication failed")
 			}
 
 			return resp, nil

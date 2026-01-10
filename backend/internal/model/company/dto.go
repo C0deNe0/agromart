@@ -16,9 +16,11 @@ type CreateCompanyRequest struct {
 	BusinessEmail *string `json:"businessEmail,omitempty" validate:"omitempty,email"`
 	BusinessPhone *string `json:"businessPhone,omitempty" validate:"omitempty,min=10,max=15"`
 
-	City    *string `json:"city,omitempty" validate:"omitempty,max=100"`
-	State   *string `json:"state,omitempty" validate:"omitempty,max=100"`
-	Pincode *string `json:"pincode,omitempty" validate:"omitempty,max=6"`
+	City      *string `json:"city,omitempty" validate:"omitempty,max=100"`
+	State     *string `json:"state,omitempty" validate:"omitempty,max=100"`
+	Pincode   *string `json:"pincode,omitempty" validate:"omitempty,max=6"`
+	GSTNumber *string `json:"gstNumber,omitempty" validate:"omitempty"`
+	PANNumber *string `json:"panNumber,omitempty" validate:"omitempty"`
 
 	ProductVisibility *ProductVisibility `json:"productVisibility,omitempty" validate:"omitempty,oneof=PUBLIC FOLLOWERS_ONLY PRIVATE"`
 }
@@ -40,6 +42,9 @@ type UpdateCompanyRequest struct {
 	City    *string `json:"city,omitempty" validate:"omitempty,max=100"`
 	State   *string `json:"state,omitempty" validate:"omitempty,max=100"`
 	Pincode *string `json:"pincode,omitempty" validate:"omitempty,max=6"`
+
+	GSTNumber *string `json:"gstNumber,omitempty" validate:"omitempty"`
+	PANNumber *string `json:"panNumber,omitempty" validate:"omitempty"`
 
 	ProductVisibility *ProductVisibility `json:"productVisibility,omitempty" validate:"omitempty,oneof=PUBLIC FOLLOWERS_ONLY PRIVATE"`
 
@@ -220,9 +225,9 @@ func ToCompanyResponse(c *Company, isFollowing *bool) *CompanyResponse {
 		City:              c.City,
 		State:             c.State,
 		Pincode:           c.Pincode,
-		IsApproved:        c.IsApproved,
-		ApprovedBy:        c.ApprovedBy,
-		ApprovedAt:        c.ApprovedAt,
+		IsApproved:        c.IsApproved(),
+		ApprovedBy:        c.ReviewedByID,
+		ApprovedAt:        c.ReviewedAt,
 		IsActive:          c.IsActive,
 		FollowerCount:     c.FollowerCount,
 		ProductVisibility: c.ProductVisibility,

@@ -36,13 +36,18 @@ func (s *CompanyService) Create(ctx context.Context, userID uuid.UUID, c company
 
 	c.OwnerID = userID
 	c.IsActive = true
-	c.IsApproved = false
+	c.ApprovalStatus = company.ApprovalStatusPending
 
 	if c.ProductVisibility == "" {
 		c.ProductVisibility = company.ProductVisibilityPublic
 	}
 
-	return s.companyRepo.Create(ctx, &c)
+	created, err := s.companyRepo.Create(ctx, &c)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create company: %w", err)
+	}
+	return created, nil
+
 }
 func (s *CompanyService) GetByID(ctx context.Context, id uuid.UUID, userID *uuid.UUID) (*company.CompanyResponse, error) {
 	c, err := s.companyRepo.GetByID(ctx, id)
@@ -58,6 +63,10 @@ func (s *CompanyService) GetByID(ctx context.Context, id uuid.UUID, userID *uuid
 		}
 		isFollowing = &following
 	}
+	// hideSensitve := true
+	// if userID != nil && c.OwnerID == *userID {
+	// 	hideSensitve = false
+	// }
 
 	return company.ToCompanyResponse(c, isFollowing), nil
 }
@@ -95,6 +104,10 @@ func (s *CompanyService) Update(ctx context.Context, userID uuid.UUID, companyID
 		return nil, errors.New("unauthorized to update the company")
 	}
 
+	if !existing.CanBeModified() {
+		return nil, fmt.Errorf("cannot modify company with status: %s. Only PENDING and REJECTED companies can be modified", existing.ApprovalStatus)
+	}
+
 	if updates.Name != nil {
 		duplicate, err := s.companyRepo.GetByOwnerAndName(ctx, userID, *updates.Name)
 		if err != nil {
@@ -128,6 +141,12 @@ func (s *CompanyService) Update(ctx context.Context, userID uuid.UUID, companyID
 	if updates.Pincode != nil {
 		existing.Pincode = updates.Pincode
 	}
+	if updates.GSTNumber != nil {
+		existing.GSTNumber = updates.GSTNumber
+	}
+	if updates.PANNumber != nil {
+		existing.PANNumber = updates.PANNumber
+	}
 	if updates.ProductVisibility != nil {
 		existing.ProductVisibility = *updates.ProductVisibility
 	}
@@ -146,14 +165,62 @@ func (s *CompanyService) Delete(ctx context.Context, userID uuid.UUID, companyID
 	if existing.OwnerID != userID {
 		return errors.New("unauthorized to delete the company")
 	}
+	if !existing.CanBeModified() {
+		return fmt.Errorf("cannot delete company with status: %s", existing.ApprovalStatus)
+	}
 	return s.companyRepo.Delete(ctx, companyID)
 }
-func (s *CompanyService) Approve(ctx context.Context, companyID uuid.UUID, adminID uuid.UUID) error {
-	_, err := s.companyRepo.GetByID(ctx, companyID)
+
+func (s *CompanyService) Resubmit(ctx context.Context, userID uuid.UUID, companyID uuid.UUID) error {
+	existing, err := s.companyRepo.GetByID(ctx, companyID)
+	if err != nil {
+		return fmt.Errorf("company not found: %w", err)
+	}
+
+	if existing.OwnerID != userID {
+		return errors.New("not authorized to resubmit this company")
+	}
+
+	if !existing.IsRejected() {
+		return errors.New("only rejected companies can be resubmitted")
+	}
+
+	return s.companyRepo.Resubmit(ctx, companyID, userID)
+}
+
+func (s *CompanyService) Approve(ctx context.Context, companyID uuid.UUID, adminID uuid.UUID, notes *string) error {
+	existing, err := s.companyRepo.GetByID(ctx, companyID)
 	if err != nil {
 		return err
 	}
-	return s.companyRepo.Approve(ctx, companyID, adminID)
+
+	if !existing.IsPending() {
+		return fmt.Errorf("only pending companies can be approved. Current status: %s", existing.ApprovalStatus)
+	}
+
+	return s.companyRepo.Approve(ctx, companyID, adminID, notes)
+}
+
+func (s *CompanyService) Reject(ctx context.Context, companyID, adminID uuid.UUID, reason string, notes *string) error {
+	existing, err := s.companyRepo.GetByID(ctx, companyID)
+	if err != nil {
+		return fmt.Errorf("company not found :%w", err)
+
+	}
+
+	if !existing.IsPending() {
+		return fmt.Errorf("only pending companies can be rejected. Current status: %s", existing.ApprovalStatus)
+	}
+
+	return s.companyRepo.Reject(ctx, companyID, adminID, reason, notes)
+}
+
+func (s *CompanyService) GetApprovalHistory(ctx context.Context, companyID uuid.UUID) ([]company.CompanyApprovalHistory, error) {
+	return s.companyRepo.GetApprovalHistory(ctx, companyID)
+}
+
+func (s *CompanyService) CountPendingApprovals(ctx context.Context) (int, error) {
+	return s.companyRepo.CountPendingApprovals(ctx)
 }
 
 //follow methids
@@ -164,8 +231,8 @@ func (s *CompanyService) Follow(ctx context.Context, companID, userID uuid.UUID)
 		return fmt.Errorf("company not found: %w", err)
 	}
 
-	if !comp.IsApproved {
-		return errors.New("connot follow unapproved company")
+	if !comp.CanBeFollowed() {
+		return fmt.Errorf("cannot follow compnay with status:%s", comp.ApprovalStatus)
 	}
 	if !comp.IsActive {
 		return errors.New("connot follow inactive company")
@@ -225,4 +292,25 @@ func (s *CompanyService) ListFollowedCompanies(ctx context.Context, userID uuid.
 
 func (s *CompanyService) CanViewProducts(ctx context.Context, companyID uuid.UUID, userID *uuid.UUID) (bool, error) {
 	return s.companyFollowerRepo.CanViewProducts(ctx, companyID, userID)
+}
+
+func (s *CompanyService) UserHasApprovedCompany(ctx context.Context, userID uuid.UUID) (bool, error) {
+	approvedCompany, err := s.companyRepo.GetApprovedCompanyByOwner(ctx, userID)
+	if err != nil {
+		return false, fmt.Errorf("failed to check approved company: %w", err)
+	}
+
+	return approvedCompany != nil, nil
+}
+func (s *CompanyService) GetUserApprovedCompany(ctx context.Context, userID uuid.UUID) (*company.Company, error) {
+	approvedCompany, err := s.companyRepo.GetApprovedCompanyByOwner(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get approved company: %w", err)
+	}
+
+	if approvedCompany == nil {
+		return nil, errors.New("you don't have an approved company. Please create and get approval first")
+	}
+
+	return approvedCompany, nil
 }

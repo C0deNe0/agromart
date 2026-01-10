@@ -8,6 +8,7 @@ import (
 	"github.com/C0deNe0/agromart/internal/model/company"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -19,97 +20,124 @@ func NewCompanyFollowerRepository(db *pgxpool.Pool) *CompanyFollowerRepository {
 	return &CompanyFollowerRepository{db: db}
 }
 
-func (r *CompanyFollowerRepository) Follow(ctx context.Context, companyID uuid.UUID, userID uuid.UUID) (*company.CompanyFollower, error) {
+// =============================================
+// FOLLOW COMPANY
+// =============================================
+
+func (r *CompanyFollowerRepository) Follow(ctx context.Context, companyID, userID uuid.UUID) (*company.CompanyFollower, error) {
 	stmt := `
-	INSERT INTO company_followers (
-		company_id,
-		user_id
-	)
-	VALUES (
-		@company_id,
-		@user_id
-	)
-	ON CONFLICT (company_id, user_id) DO NOTHING
-	RETURNING *`
+        INSERT INTO company_followers (company_id, user_id)
+        VALUES (@company_id, @user_id)
+        ON CONFLICT (company_id, user_id) DO NOTHING
+        RETURNING *
+    `
+
 	rows, err := r.db.Query(ctx, stmt, pgx.NamedArgs{
 		"company_id": companyID,
 		"user_id":    userID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to follow company:%w", err)
+		// Check if it's our custom trigger error
+		if pgErr, ok := err.(*pgconn.PgError); ok {
+			return nil, fmt.Errorf("%s", pgErr.Message)
+		}
+		return nil, fmt.Errorf("failed to follow company: %w", err)
 	}
 
-	row, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[company.CompanyFollower])
+	follower, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[company.CompanyFollower])
 	if err != nil {
 		if err == pgx.ErrNoRows {
+			// Already following - return existing record
 			return r.GetFollowStatus(ctx, companyID, userID)
 		}
-		return nil, fmt.Errorf("failed to collect row:%w", err)
+		return nil, fmt.Errorf("failed to collect row: %w", err)
 	}
 
-	return &row, nil
+	return &follower, nil
 }
 
-func (r *CompanyFollowerRepository) Unfollow(ctx context.Context, companyID uuid.UUID, userID uuid.UUID) error {
+// =============================================
+// UNFOLLOW COMPANY
+// =============================================
+
+func (r *CompanyFollowerRepository) Unfollow(ctx context.Context, companyID, userID uuid.UUID) error {
 	stmt := `
-	DELETE FROM company_followers
-	WHERE company_id = @company_id AND user_id = @user_id`
+        DELETE FROM company_followers
+        WHERE company_id = @company_id AND user_id = @user_id
+    `
 
 	result, err := r.db.Exec(ctx, stmt, pgx.NamedArgs{
 		"company_id": companyID,
 		"user_id":    userID,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to unfollow company:%w", err)
+		return fmt.Errorf("failed to unfollow company: %w", err)
 	}
 
 	if result.RowsAffected() == 0 {
-		return fmt.Errorf("user is not following company")
+		return fmt.Errorf("not following this company")
 	}
 
 	return nil
 }
 
-func (r *CompanyFollowerRepository) IsFollowing(ctx context.Context, companyID uuid.UUID, userID uuid.UUID) (bool, error) {
-	stmt := `SELECT EXISTS (
-		SELECT 1 
-		FROM company_followers 
-		WHERE company_id = @company_id AND user_id = @user_id
-		)`
-	var exists bool
+// =============================================
+// CHECK IF FOLLOWING
+// =============================================
 
+func (r *CompanyFollowerRepository) IsFollowing(ctx context.Context, companyID, userID uuid.UUID) (bool, error) {
+	stmt := `
+        SELECT EXISTS(
+            SELECT 1 FROM company_followers
+            WHERE company_id = @company_id AND user_id = @user_id
+        )
+    `
+
+	var exists bool
 	err := r.db.QueryRow(ctx, stmt, pgx.NamedArgs{
 		"company_id": companyID,
 		"user_id":    userID,
 	}).Scan(&exists)
+
 	if err != nil {
-		return false, fmt.Errorf("failed to check if user is following company:%w", err)
+		return false, fmt.Errorf("failed to check follow status: %w", err)
 	}
 
 	return exists, nil
 }
 
-func (r *CompanyFollowerRepository) GetFollowStatus(ctx context.Context, companyID uuid.UUID, userID uuid.UUID) (*company.CompanyFollower, error) {
-	stmt := `SELECT * FROM company_followers
-		WHERE company_id = @company_id AND user_id = @user_id`
+// =============================================
+// GET FOLLOW STATUS
+// =============================================
+
+func (r *CompanyFollowerRepository) GetFollowStatus(ctx context.Context, companyID, userID uuid.UUID) (*company.CompanyFollower, error) {
+	stmt := `
+        SELECT * FROM company_followers
+        WHERE company_id = @company_id AND user_id = @user_id
+    `
+
 	rows, err := r.db.Query(ctx, stmt, pgx.NamedArgs{
 		"company_id": companyID,
 		"user_id":    userID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get follow status:%w", err)
+		return nil, fmt.Errorf("failed to get follow status: %w", err)
 	}
 
-	row, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[company.CompanyFollower])
+	follower, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[company.CompanyFollower])
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to collect row:%w", err)
+		return nil, fmt.Errorf("failed to collect row: %w", err)
 	}
 
-	return &row, nil
+	return &follower, nil
 }
+
+// =============================================
+// GET FOLLOW STATUS BATCH
+// =============================================
 
 func (r *CompanyFollowerRepository) GetFollowStatusBatch(ctx context.Context, companyIDs []uuid.UUID, userID uuid.UUID) (map[uuid.UUID]bool, error) {
 	if len(companyIDs) == 0 {
@@ -147,7 +175,9 @@ func (r *CompanyFollowerRepository) GetFollowStatusBatch(ctx context.Context, co
 	return result, nil
 }
 
-//DIRECT COPY PASTED
+// =============================================
+// LIST FOLLOWERS
+// =============================================
 
 func (r *CompanyFollowerRepository) ListFollowers(ctx context.Context, companyID uuid.UUID, page, limit int) (*model.PaginatedResponse[company.CompanyFollowerResponse], error) {
 	// Count total
@@ -213,10 +243,19 @@ func (r *CompanyFollowerRepository) ListFollowers(ctx context.Context, companyID
 	}, nil
 }
 
+// =============================================
+// LIST FOLLOWED COMPANIES
+// =============================================
+
 func (r *CompanyFollowerRepository) ListFollowedCompanies(ctx context.Context, userID uuid.UUID, page, limit int) (*model.PaginatedResponse[company.Company], error) {
 	// Count total
 	var total int
-	countStmt := `SELECT COUNT(*) FROM company_followers WHERE user_id = @user_id`
+	countStmt := `
+        SELECT COUNT(*) 
+        FROM company_followers cf
+        JOIN companies c ON cf.company_id = c.id
+        WHERE cf.user_id = @user_id AND c.is_active = true
+    `
 	err := r.db.QueryRow(ctx, countStmt, pgx.NamedArgs{
 		"user_id": userID,
 	}).Scan(&total)
@@ -229,7 +268,7 @@ func (r *CompanyFollowerRepository) ListFollowedCompanies(ctx context.Context, u
         SELECT c.*
         FROM companies c
         JOIN company_followers cf ON c.id = cf.company_id
-        WHERE cf.user_id = @user_id
+        WHERE cf.user_id = @user_id AND c.is_active = true
         ORDER BY cf.followed_at DESC
         LIMIT @limit OFFSET @offset
     `
@@ -258,28 +297,33 @@ func (r *CompanyFollowerRepository) ListFollowedCompanies(ctx context.Context, u
 	}, nil
 }
 
+// =============================================
+// CHECK PRODUCT VIEW PERMISSION
+// =============================================
+
 func (r *CompanyFollowerRepository) CanViewProducts(ctx context.Context, companyID uuid.UUID, userID *uuid.UUID) (bool, error) {
 	var visibility company.ProductVisibility
 	var ownerID uuid.UUID
-	var isApproved, isActive bool
+	var approvalStatus company.ApprovalStatus
+	var isActive bool
 
 	stmt := `
-        SELECT product_visibility, owner_id, is_approved, is_active
+        SELECT product_visibility, owner_id, approval_status, is_active
         FROM companies 
         WHERE id = @company_id
     `
 
 	err := r.db.QueryRow(ctx, stmt, pgx.NamedArgs{
 		"company_id": companyID,
-	}).Scan(&visibility, &ownerID, &isApproved, &isActive)
+	}).Scan(&visibility, &ownerID, &approvalStatus, &isActive)
 
 	if err != nil {
 		return false, fmt.Errorf("failed to get company visibility: %w", err)
 	}
 
 	// Company must be approved and active
-	if !isApproved || !isActive {
-		// Only owner can view inactive/unapproved company products
+	if approvalStatus != company.ApprovalStatusApproved || !isActive {
+		// Only owner can view products of unapproved/inactive company
 		if userID != nil && ownerID == *userID {
 			return true, nil
 		}

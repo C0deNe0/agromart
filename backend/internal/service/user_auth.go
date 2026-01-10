@@ -34,12 +34,25 @@ func NewAuthService(
 	}
 }
 
+type ctxKey string
+
+const (
+	AuthProviderLocal  = "LOCAL"
+	AuthProviderGoogle = "GOOGLE"
+	ctxUserAgent       = ctxKey("user_agent")
+	ctxIPAddress       = ctxKey("ip")
+)
+
 // register with email
 func (s *AuthService) RegisterWithEmail(ctx context.Context, email string, password string, name string) (*user.AuthResponse, error) {
-	existing, _ := s.userRepo.GetByEmail(ctx, email)
-	if existing != nil {
+	// If DB is down → existing == nil → duplicate user creation attempt.
+	existing, err := s.userRepo.GetByEmail(ctx, email)
+	if err == nil && existing != nil {
 		return nil, errors.New("email already exists")
 	}
+	// if err != nil && !errors.Is(err, repository.ErrNotFound) {
+	// 	return nil, err
+	// }
 
 	u := &user.User{
 		Email:         email,
@@ -61,7 +74,7 @@ func (s *AuthService) RegisterWithEmail(ctx context.Context, email string, passw
 
 	method := &repository.UserAuthMethod{
 		UserId:       createdUser.ID,
-		AuthProvider: "LOCAL",
+		AuthProvider: AuthProviderLocal,
 		PasswordHash: &hash,
 	}
 
@@ -125,21 +138,23 @@ func (s *AuthService) LoginWithEmail(ctx context.Context, email string, password
 func (s *AuthService) LoginWithGoogle(ctx context.Context, googleSub string, email, name string, profileURL *string) (*user.AuthResponse, error) {
 	//Get user by email
 	u, err := s.userRepo.GetByEmail(ctx, email)
-	if err != nil {
+	if errors.Is(err, repository.ErrNotFound) {
 		u, err = s.userRepo.Create(ctx, &user.User{
-			Email:    email,
-			Name:     name,
-			Role:     user.RoleUser,
-			EmailVerified: true,
-			IsActive: true,
+			Email:           email,
+			Name:            name,
+			Role:            user.RoleUser,
+			EmailVerified:   true,
+			IsActive:        true,
 			ProfileImageURL: profileURL,
 		})
 		if err != nil {
 			return nil, err
 		}
+	} else if err != nil {
+		return nil, err
 	}
 
-	if _, err := s.authMethodRepo.EnsureOAuth(ctx, u.ID, "GOOGLE", googleSub); err != nil {
+	if _, err := s.authMethodRepo.EnsureOAuth(ctx, u.ID, AuthProviderGoogle, googleSub); err != nil {
 		return nil, err
 	}
 
@@ -170,6 +185,10 @@ func (s *AuthService) Refresh(ctx context.Context, rawRefreshToken string) (*use
 	rt, err := s.refreshTokenRepo.FindValid(ctx, tokenHash)
 	if err != nil {
 		return nil, errors.New("invalid or expired refresh token")
+	}
+
+	if rt.RevokedAt != nil {
+		return nil, errors.New("refresh token revoked")
 	}
 
 	// 3. Load user
@@ -224,7 +243,7 @@ func (s *AuthService) issueTokens(ctx context.Context, userID uuid.UUID, role st
 		return
 	}
 
-	refresh, err = s.TokenManager.GenerateRefreshToken(userID, role)
+	refresh, err = s.TokenManager.GenerateRefreshToken(userID)
 	if err != nil {
 		return
 	}
@@ -240,7 +259,7 @@ func (s *AuthService) issueTokens(ctx context.Context, userID uuid.UUID, role st
 	return
 }
 
-func getCtxString(ctx context.Context, key string) string {
+func getCtxString(ctx context.Context, key ctxKey) string {
 	if v := ctx.Value(key); v != nil {
 		if s, ok := v.(string); ok {
 			return s
