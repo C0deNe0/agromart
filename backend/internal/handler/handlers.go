@@ -5,12 +5,13 @@ import (
 )
 
 type Handlers struct {
-	Health  *HealthHandler
+	Auth    *AuthHandler
 	User    *UserHandler
 	Company *CompanyHandler
 	Product *ProductHandler
-	Auth    *AuthHandler
+	Health  *HealthHandler
 	Upload  *UploadHandler
+	Admin   *AdminHandler
 }
 
 func NewHandlers(s *service.Services) Handlers {
@@ -21,5 +22,6 @@ func NewHandlers(s *service.Services) Handlers {
 		Product: NewProductHandler(s.Product),
 		Auth:    NewAuthHandler(s.Auth),
 		Upload:  NewUploadHandler(s.Upload),
+		Admin:   NewAdminHandler(s.Company),
 	}
 }

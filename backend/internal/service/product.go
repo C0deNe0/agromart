@@ -26,27 +26,35 @@ func NewProductService(productRepo *repository.ProductRepository, companyRepo *r
 }
 
 func (s *ProductService) Create(ctx context.Context, userID uuid.UUID, p *product.Product) (*product.Product, error) {
+	
+	approvedCompany, err := s.companyRepo.GetApprovedCompanyByOwner(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check company approval: %w", err)
+	}
 
-	//check if comp exists
+	if approvedCompany == nil {
+		return nil, errors.New("you must have an approved company before creating products. Please create a company and wait for admin approval")
+	}
+
+	if p.CompanyID != approvedCompany.ID {
+		return nil, errors.New("you can only create products for your own approved company")
+	}
+
 	company, err := s.companyRepo.GetByID(ctx, p.CompanyID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get company by id: %w", err)
+		return nil, fmt.Errorf("failed to get company: %w", err)
 	}
 
-	//check the user
 	if company.OwnerID != userID {
-		return nil, fmt.Errorf("not autorized to create product for this company")
-	}
-	//company is approved
-	if !company.IsApproved {
-		return nil, fmt.Errorf("company is not approved")
+		return nil, errors.New("not authorized to create product for this company")
 	}
 
-	if p.CategoryID != nil {
-		_, err := s.categoryRepo.GetByID(ctx, *p.CategoryID)
-		if err != nil {
-			return nil, fmt.Errorf("invalid category:%w", err)
-		}
+	if !company.IsApproved() {
+		return nil, errors.New("company must be approved before creating products")
+	}
+
+	if !company.IsActive {
+		return nil, errors.New("company is not active")
 	}
 
 	return s.productRepo.Create(ctx, p)
@@ -83,14 +91,13 @@ func (s *ProductService) Update(ctx context.Context, userID uuid.UUID, productID
 		existing.CategoryID = p.CategoryID
 	}
 
-
 	if p.Name != nil {
 		existing.Name = *p.Name
 	}
 	if p.Description != nil {
 		existing.Description = p.Description
 	}
-	
+
 	if p.Unit != nil {
 		existing.Unit = *p.Unit
 	}
@@ -158,7 +165,7 @@ func (s *ProductService) AuthorizeProductMutation(ctx context.Context, userID uu
 	}
 
 	// 5️⃣ Company must be approved
-	if !company.IsApproved {
+	if !company.IsApproved() {
 		return errors.New("company is not approved")
 	}
 

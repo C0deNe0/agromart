@@ -27,12 +27,12 @@ func NewServices(repo *repository.Repositories, tokenManager *utils.TokenManager
 
 	// tokenManager := utils.NewTokenManager("secret", "access")
 	//____________________________________________________________________
-
+	CompanyService := NewCompanyService(repo.Company, repo.CompanyFollower)
 	productService := NewProductService(repo.Product, repo.Company, repo.Category)
 
 	return &Services{
 		User:         NewUserService(repo.User),
-		Company:      NewCompanyService(repo.Company),
+		Company:      CompanyService,
 		Product:      productService,
 		Auth:         NewAuthService(repo.User, repo.UserAuthMethod, tokenManager, refreshTokenRepo),
 		RefreshToken: refreshTokenRepo,

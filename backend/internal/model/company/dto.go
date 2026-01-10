@@ -57,12 +57,12 @@ func (u *UpdateCompanyRequest) Validate() error {
 }
 
 type ListCompanyQuery struct {
-	Page       int        `query:"page" validate:"min=1"`
-	Limit      int        `query:"limit" validate:"min=1,max=100"`
-	Search     *string    `query:"search" validate:"omitempty,max=255"`
-	IsApproved *bool      `query:"isApproved"`
-	IsActive   *bool      `query:"isActive"`
-	OwnerID    *uuid.UUID `query:"ownerId" validate:"omitempty,uuid"`
+	Page           int             `query:"page" validate:"min=1"`
+	Limit          int             `query:"limit" validate:"min=1,max=100"`
+	Search         *string         `query:"search" validate:"omitempty,max=255"`
+	ApprovalStatus *ApprovalStatus `query:"approvalStatus" validate:"omitempty,oneof=APPROVED PENDING REJECTED"`
+	IsActive       *bool           `query:"isActive" validate:"omitempty,oneof=true false"`
+	OwnerID        *uuid.UUID      `query:"ownerId" validate:"omitempty,uuid"`
 }
 
 func (q *ListCompanyQuery) Validate() error {
@@ -96,6 +96,53 @@ type DeleteCompanyRequest struct {
 }
 
 func (r *DeleteCompanyRequest) Validate() error {
+	validate := validator.New()
+	return validate.Struct(r)
+}
+
+type ResubmitCompanyRequest struct {
+	ID uuid.UUID `param:"id" validate:"required,uuid"`
+}
+
+func (r *ResubmitCompanyRequest) Validate() error {
+	validate := validator.New()
+	return validate.Struct(r)
+}
+
+type GetApprovalHistoryRequest struct {
+	ID uuid.UUID `param:"id" validate:"required,uuid"`
+}
+
+func (r *GetApprovalHistoryRequest) Validate() error {
+	validate := validator.New()
+	return validate.Struct(r)
+}
+
+type ApproveCompanyRequest struct {
+	CompanyID uuid.UUID `param:"id" validate:"required,uuid"`
+	Notes     *string   `json:"notes,omitempty" validate:"omitempty,max=2048"`
+}
+
+func (r *ApproveCompanyRequest) Validate() error {
+	validate := validator.New()
+	return validate.Struct(r)
+}
+
+type RejectCompanyRequest struct {
+	CompanyID uuid.UUID `param:"id" validate:"required,uuid"`
+	Reason    string    `json:"reason" validate:"required,max=255"`
+	Notes     *string   `json:"notes,omitempty" validate:"omitempty,max=2048"`
+}
+
+func (r *RejectCompanyRequest) Validate() error {
+	validate := validator.New()
+	return validate.Struct(r)
+}
+
+type CountPendingApprovalsRequest struct {
+}
+
+func (r *CountPendingApprovalsRequest) Validate() error {
 	validate := validator.New()
 	return validate.Struct(r)
 }

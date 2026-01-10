@@ -11,8 +11,8 @@ func RegisterAdminRoutes(r *echo.Group, h *handler.Handlers, admin *middleware.A
 	adminGroup := r.Group("/admin")
 	adminGroup.Use(admin.RequireAdmin)
 
-	adminGroup.DELETE("/companies/:id", h.Company.Delete())
-	adminGroup.GET("/companies/pending", h.Company.ListPending())
-	adminGroup.POST("/companies/:id/approve", h.Company.Approve())
-	adminGroup.POST("/companies/:id/reject", h.Company.Reject())
+	adminGroup.PUT("/companies/:id/approve", h.Admin.ApproveCompany())
+	adminGroup.PUT("/companies/:id/reject", h.Admin.RejectCompany())
+	adminGroup.GET("/companies/pending", h.Admin.CountPendingApprovals())
+	// adminGroup.DELETE("/companies/:id", h.Admin.DeleteCompany())
 }
