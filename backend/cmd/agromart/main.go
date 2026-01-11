@@ -10,12 +10,14 @@ import (
 	"github.com/C0deNe0/agromart/internal/config"
 	"github.com/C0deNe0/agromart/internal/database"
 	"github.com/C0deNe0/agromart/internal/handler"
+	"github.com/C0deNe0/agromart/internal/lib/aws"
 	"github.com/C0deNe0/agromart/internal/lib/utils"
 	"github.com/C0deNe0/agromart/internal/logger"
 	"github.com/C0deNe0/agromart/internal/repository"
 	"github.com/C0deNe0/agromart/internal/router"
 	"github.com/C0deNe0/agromart/internal/server"
 	"github.com/C0deNe0/agromart/internal/service"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -60,8 +62,12 @@ func main() {
 		cfg.Primary.Access,
 		cfg.Primary.Secret,
 	)
+	s3Service := aws.NewS3Service(
+		&s3.Client{},
+		cfg.StorageS3.BucketName,
+		cfg.StorageS3.Region)
 
-	services := service.NewServices(repos, tokenManager, refreshTokenRepo)
+	services := service.NewServices(repos, tokenManager, refreshTokenRepo, s3Service)
 	handlers := handler.NewHandlers(services)
 	r := router.NewRouter(&handlers, tokenManager)
 

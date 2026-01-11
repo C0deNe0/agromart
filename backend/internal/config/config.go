@@ -13,10 +13,11 @@ import (
 )
 
 type Config struct {
-	Primary  Primary        `koanf:"primary" validate:"required"`
-	Server   Server         `koanf:"server" validate:"required"`
-	Database DatabaseConfig `koanf:"database" validate:"required"`
-	OAuth    OAuthConfig    `koanf:"oauth" validate:"required"`
+	Primary   Primary        `koanf:"primary" validate:"required"`
+	Server    Server         `koanf:"server" validate:"required"`
+	Database  DatabaseConfig `koanf:"database" validate:"required"`
+	OAuth     OAuthConfig    `koanf:"oauth" validate:"required"`
+	StorageS3 StorageS3      `koanf:"storages3" validate:"required"`
 }
 
 type Primary struct {
@@ -50,6 +51,11 @@ type OAuthConfig struct {
 	GoogleClientID     string `koanf:"google_client_id" validate:"required"`
 	GoogleClientSecret string `koanf:"google_client_secret" validate:"required"`
 	GoogleRedirectURI  string `koanf:"google_redirect_uri" validate:"required"`
+}
+
+type StorageS3 struct {
+	BucketName string `koanf:"bucket_name" validate:"required"`
+	Region     string `koanf:"region" validate:"required"`
 }
 
 func LoadConfig() (*Config, error) {

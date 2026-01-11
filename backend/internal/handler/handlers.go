@@ -10,7 +10,6 @@ type Handlers struct {
 	Company *CompanyHandler
 	Product *ProductHandler
 	Health  *HealthHandler
-	Upload  *UploadHandler
 	Admin   *AdminHandler
 }
 
@@ -21,7 +20,6 @@ func NewHandlers(s *service.Services) Handlers {
 		Company: NewCompanyHandler(s.Company),
 		Product: NewProductHandler(s.Product),
 		Auth:    NewAuthHandler(s.Auth),
-		Upload:  NewUploadHandler(s.Upload),
-		Admin:   NewAdminHandler(s.Company),
+		Admin:   NewAdminHandler(s.Company, s.Product),
 	}
 }

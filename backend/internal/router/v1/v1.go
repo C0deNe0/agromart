@@ -16,8 +16,6 @@ func RegisterV1Routes(c echo.Context, r *echo.Group, h *handler.Handlers, auth *
 	authRoutes.POST("/refresh", h.Auth.Refresh())
 	//googleLogin
 	authRoutes.POST("/google/login", h.Auth.LoginWithGoogleIDToken())
-	//uploads
-	RegisterUploadRoutes(r, h, auth)
 
 	//----PROTECTED ROUTES
 	api := r.Group("")

@@ -14,38 +14,44 @@ type PreSignedUpload struct {
 	Key     string `json:"key"`
 	Expires int64  `json:"expires_in"`
 }
-type S3Client struct {
+type S3Service struct {
 	client *s3.Client
 	bucket string
+	region string
 }
 
-func NewS3Client(cfg aws.Config, bucket string) *S3Client {
-	return &S3Client{
-		client: s3.NewFromConfig(cfg),
+func NewS3Service(client *s3.Client, bucket string, region string) *S3Service {
+	return &S3Service{
+		client: client,
 		bucket: bucket,
+		region: region,
 	}
 }
 
-func (s *S3Client) PreSignedUpload(ctx context.Context, key string, contentType string) (*PreSignedUpload, error) {
+func (s *S3Service) GeneratePresignedUploadURL(ctx context.Context, key string, contentType string, expiresInSeconds int) (string, error) {
 	presigner := s3.NewPresignClient(s.client)
 
 	req, err := presigner.PresignPutObject(ctx, &s3.PutObjectInput{
-		Bucket:      &s.bucket,
-		Key:         &key,
-		ContentType: &contentType,
-	}, s3.WithPresignExpires(15*time.Minute))
+		Bucket:      aws.String(s.bucket),
+		Key:         aws.String(key),
+		ContentType: aws.String(contentType),
+	}, func(opts *s3.PresignOptions) {
+		opts.Expires = time.Duration(expiresInSeconds) * time.Second
+	})
+
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("failure to generated presiged URL: %w", err)
 	}
 
-	return &PreSignedUpload{
-		URL:     req.URL,
-		Key:     key,
-		Expires: 300,
-	}, nil
+	return req.URL, nil
 }
 
-func (s *S3Client) DeleteObject(ctx context.Context, key string) error {
+// GET PUBLIC URL
+func (s *S3Service) GetPublicURL(key string) string {
+	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", s.bucket, s.region, key)
+}
+
+func (s *S3Service) DeleteObject(ctx context.Context, key string) error {
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
