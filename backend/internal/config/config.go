@@ -17,7 +17,7 @@ type Config struct {
 	Server    Server         `koanf:"server" validate:"required"`
 	Database  DatabaseConfig `koanf:"database" validate:"required"`
 	OAuth     OAuthConfig    `koanf:"oauth" validate:"required"`
-	StorageS3 StorageS3      `koanf:"storages3" validate:"required"`
+	StorageS3 StorageS3      `koanf:"storages3" `
 }
 
 type Primary struct {
@@ -54,8 +54,8 @@ type OAuthConfig struct {
 }
 
 type StorageS3 struct {
-	BucketName string `koanf:"bucket_name" validate:"required"`
-	Region     string `koanf:"region" validate:"required"`
+	BucketName string `koanf:"bucket_name" `
+	Region     string `koanf:"region" `
 }
 
 func LoadConfig() (*Config, error) {

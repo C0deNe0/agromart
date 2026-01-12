@@ -11,10 +11,10 @@ func RegisterAdminRoutes(r *echo.Group, h *handler.Handlers, admin *middleware.A
 	adminGroup := r.Group("/admin")
 	adminGroup.Use(admin.RequireAdmin)
 
+	adminGroup.GET("/companies/pending", h.Admin.CountPendingCompanyApprovals())
 	adminGroup.PUT("/companies/:id/approve", h.Admin.ApproveCompany())
 	adminGroup.PUT("/companies/:id/reject", h.Admin.RejectCompany())
-	adminGroup.GET("/companies/pending", h.Admin.CountPendingCompanyApprovals())
-	// adminGroup.DELETE("/companies/:id", h.Admin.DeleteCompany())
+	// adminGroup.DELETE("/companies/:id", h.Admin.())
 
 	adminGroup.PUT("/products/:id/approve", h.Admin.ApproveProduct())
 	adminGroup.PUT("/products/:id/reject", h.Admin.RejectProduct())

@@ -15,7 +15,7 @@ type Repositories struct {
 	ProductImage     *productRepo.ProductImageRepository
 	ProductVariant   *productRepo.ProductVariantRepository
 	RefreshToken     *RefreshTokenRepository
-	Favorite         *FavoriteRepository
+	// Favorite         *FavoriteRepository
 	SubscriptionPlan *SubscriptionPlanRepository
 }
 
@@ -30,7 +30,7 @@ func NewRepositories(db *pgxpool.Pool) *Repositories {
 		ProductImage:     productRepo.NewProductImageRepository(db),
 		ProductVariant:   productRepo.NewProductVariantRepository(db),
 		RefreshToken:     NewRefreshTokenRepository(db),
-		Favorite:         NewFavoriteRepository(db),
+		// Favorite:         NewFavoriteRepository(db),
 		SubscriptionPlan: NewSubscriptionPlanRepository(db),
 	}
 }
