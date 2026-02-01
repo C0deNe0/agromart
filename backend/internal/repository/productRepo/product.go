@@ -141,7 +141,7 @@ func (r *ProductRepository) List(ctx context.Context, filter ProductFilter) (*mo
 	}
 
 	// Get data
-	stmt := `SELECT * ` + base + ` ORDER BY submitted_at DESC LIMIT @limit OFFSET @offset`
+	stmt := `SELECT * ` + base + ` ORDER BY created_at DESC LIMIT @limit OFFSET @offset`
 	args["limit"] = filter.Limit
 	args["offset"] = (filter.Page - 1) * filter.Limit
 

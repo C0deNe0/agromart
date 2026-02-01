@@ -102,6 +102,7 @@ func (s *ProductService) Create(ctx context.Context, userID uuid.UUID, req *prod
 
 	return product.ToProductResponse(created, []product.ProductImage{}, variants), nil
 }
+
 func (s *ProductService) List(ctx context.Context, userID *uuid.UUID, filter productRepo.ProductFilter) (*model.PaginatedResponse[product.ProductResponse], error) {
 	if userID == nil && filter.ApprovalStatus == nil {
 		approvalStatus := company.ApprovalStatusApproved

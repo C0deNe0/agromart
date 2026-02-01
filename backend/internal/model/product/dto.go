@@ -80,11 +80,6 @@ type ListProductsQuery struct {
 }
 
 func (q *ListProductsQuery) Validate() error {
-	validate := validator.New()
-
-	if err := validate.Struct(q); err != nil {
-		return err
-	}
 
 	if q.Page == 0 {
 		q.Page = 1
@@ -100,6 +95,12 @@ func (q *ListProductsQuery) Validate() error {
 
 	if q.Limit < 1 {
 		return errors.New("limit must be greater than 0")
+	}
+
+	validate := validator.New()
+
+	if err := validate.Struct(q); err != nil {
+		return err
 	}
 
 	return nil

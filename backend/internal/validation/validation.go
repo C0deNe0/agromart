@@ -19,19 +19,10 @@ func BindAndValidate(c echo.Context, req Validatable) error {
 		return err
 	}
 
-	return ValidateStruct(req)
-}
-
-func ValidateStruct(v Validatable) error {
-	if err := validate.Struct(v); err != nil {
+	if err := req.Validate(); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
 	return nil
 }
 
-// var uuidRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
-
-// func IsValidUUID(uuid string) bool {
-// 	return uuidRegex.MatchString(uuid)
-// }

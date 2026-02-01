@@ -52,7 +52,7 @@ CREATE TABLE user_addresses (
     state TEXT,
     pincode TEXT,
 
-    is_primary BOOLEAN NOT NULL DEFAULT FALSE  
+    is_primary BOOLEAN NOT NULL DEFAULT FALSE
 ); 
 
 
